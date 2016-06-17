@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	_ "odbc/driver"
 	"os"
 	"strings"
+
+	_ "odbc/driver"
 )
 
 func selectAccess(conn *sql.DB, file *os.File) bool {
@@ -19,21 +20,31 @@ func selectAccess(conn *sql.DB, file *os.File) bool {
 	//queried Oringinal DB for ***
 	for rows.Next() {
 		var (
-			id    string
-			chart string
-			fname string
-			lname string
-			age   string
-			dob   string
+			ptid   string
+			chart  string
+			lname  string
+			fname  string
+			sex    string
+			age    string
+			dob    string
+			street string
+			city   string
+			prov   string
+			pcode  string
+			hnum   string
+			pnum   string
+			email  string
 		)
-		err = rows.Scan(&id, &chart, &fname, &lname, &age, &dob)
+		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &dob, &street, &city, &prov, &pcode, &hnum, &pnum, &email)
 		if err != nil {
 			fmt.Println("Select Row Failed")
 			return false
 		}
 		s := strings.Split(dob, "T")
-		row := "\n" + id + "        | " + chart + "          | " + fname + "              | " + lname + "                |                 " + age + " |         " + s[0]
+		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + s[0] + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + pnum + "|" + email
 		fmt.Println("Here")
+		fmt.Println("Here")
+
 		fmt.Println(row)
 		fileWrite(file, row)
 	}
