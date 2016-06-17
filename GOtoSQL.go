@@ -4,17 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 
-	_ "odbc/driver"
+	_ "github.com/alexbrainman/odbc"
 )
 
-func selectAccess(conn *sql.DB, file *os.File) bool {
-
-	rows, err := conn.Query("SELECT * from ContactInfo")
+func selectAccess(conn *sql.DB, file *os.File) int {
+	//Queries the database, and passes the row to be appended to the test file
+	inserted := 0
+	//count number inserted
+	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, H_NUM, PNUM, Email FROM ContactInfo")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Query Failed")
+		return 0
 	}
 	defer rows.Close()
 	//queried Oringinal DB for ***
@@ -38,35 +42,52 @@ func selectAccess(conn *sql.DB, file *os.File) bool {
 		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &dob, &street, &city, &prov, &pcode, &hnum, &pnum, &email)
 		if err != nil {
 			fmt.Println("Select Row Failed")
-			return false
+			return inserted
 		}
 		s := strings.Split(dob, "T")
 		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + s[0] + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + pnum + "|" + email
-		fmt.Println("Here")
-		fmt.Println("Here")
 
-		fmt.Println(row)
-		fileWrite(file, row)
+		inserted += fileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
 	if err != nil {
 		fmt.Println("Select Failed")
-		return false
+		return inserted
 	}
 	// //flag errors from querying Oringinating DB
-	return true
+	return inserted
 }
 
-func fileWrite(file *os.File, row string) {
-
+func fileWrite(file *os.File, row string) int {
+	//Writes the queried row into a text file
 	_, err := io.WriteString(file, row)
 	if err != nil {
 		fmt.Println("Could Not Write String")
+		return 0
+	}
+	return 1
+}
+
+func findDB(dir string) (filename string) {
+	//Go through the current directory and identifies folders, .accdb, and .mdb
+	files, _ := ioutil.ReadDir("./")
+	for _, f := range files {
+		if strings.Contains(f.Name(), ".accdb") {
+			fmt.Println(f.Name())
+		} else if strings.Contains(f.Name(), ".mdb") {
+			fmt.Println(f.Name())
+		} else if !(strings.Contains(f.Name(), ".")) {
+			fmt.Println(f.Name())
+		}
 	}
 }
 
 func main() {
+
+	//Iterate through Files, finds folders, .accdb,and .mdb
+	//Check if file is a followup/peri op**
+	//if so, parse the necessary fields**
 
 	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=.\\TestDB.accdb")
 	if err != nil {
@@ -80,28 +101,7 @@ func main() {
 		fmt.Println("Could not open text file")
 	}
 	defer file.Close()
-	selectAccess(conn, file)
-
+	//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
+	inserted := selectAccess(conn, file)
+	fmt.Printf("Total Number of Rows Read= %d\n", inserted)
 }
-
-// rec, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=.\\TestDBRec.accdb")
-// if err != nil {
-// 	fmt.Println("Connecting Error")
-// 	return
-// }
-// defer rec.Close()
-// // Receiving Database connection established
-//**************************************************************
-// INSERT INTO MS ACCESS USING sql
-// CURRENTLY DOES NOT WORK FOR SOME REASON
-//
-// func insertAccess(conn *sql.DB) string {
-// 	rslt, err := conn.Exec("INSERT INTO info VALUES(?)", "dolly")
-// 	if err != nil {
-// 		log.Fatalln("Could Not Insert")
-// 	}
-// 	// preparing inset statement for receiving DB
-// 	fmt.Println(rslt.LastInsertId())
-// 	return "Insert Complete"
-// }
-//**************************************************************
