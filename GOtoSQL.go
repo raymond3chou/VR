@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	_ "github.com/alexbrainman/odbc"
+	_ "github.com/miquella"
 )
 
 func selectAccess(conn *sql.DB, file *os.File) int {
@@ -81,6 +81,27 @@ func findDB(dir string) (filename string) {
 			fmt.Println(f.Name())
 		}
 	}
+	return "true"
+}
+
+func findtable(conn *sql.DB) string {
+	//Currently only works with .mdb. .accdb does not have permission
+	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
+	if err != nil {
+		fmt.Println(err)
+		return "QFailed"
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var table string
+		err = rows.Scan(&table)
+		if err != nil {
+			fmt.Println("Select Row Failed")
+		}
+		fmt.Println(table)
+	}
+	return "true"
 }
 
 func main() {
@@ -89,7 +110,7 @@ func main() {
 	//Check if file is a followup/peri op**
 	//if so, parse the necessary fields**
 
-	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=.\\TestDB.accdb")
+	conn, err := sql.Open("mgodbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=.\\TestDB.mdb;")
 	if err != nil {
 		fmt.Println("Connecting Error")
 		return
@@ -102,6 +123,7 @@ func main() {
 	}
 	defer file.Close()
 	//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
+	fmt.Println(findtable(conn))
 	inserted := selectAccess(conn, file)
 	fmt.Printf("Total Number of Rows Read= %d\n", inserted)
 }
