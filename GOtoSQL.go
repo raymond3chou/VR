@@ -11,11 +11,11 @@ import (
 	_ "github.com/miquella"
 )
 
-func selectAccess(conn *sql.DB, file *os.File) int {
+func selectAccess(conn *sql.DB, file *os.File, tablename string) int {
 	//Queries the database, and passes the row to be appended to the test file
 	inserted := 0
 	//count number inserted
-	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, H_NUM, PNUM, Email FROM ContactInfo")
+	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, H_NUM, PNUM, Email FROM " + tablename)
 	if err != nil {
 		fmt.Println("Query Failed")
 		return 0
@@ -69,27 +69,33 @@ func fileWrite(file *os.File, row string) int {
 	return 1
 }
 
-func findDB(dir string) (filename string) {
+func findDB(dir string) ([]string, []string, []string) {
 	//Go through the current directory and identifies folders, .accdb, and .mdb
-	files, _ := ioutil.ReadDir("./")
+	var mdbnames []string
+	var accdbnames []string
+	var foldernames []string
+
+	files, _ := ioutil.ReadDir(dir)
 	for _, f := range files {
 		if strings.Contains(f.Name(), ".accdb") {
-			fmt.Println(f.Name())
+			mdbnames = append(mdbnames, f.Name())
 		} else if strings.Contains(f.Name(), ".mdb") {
-			fmt.Println(f.Name())
+			accdbnames = append(accdbnames, f.Name())
 		} else if !(strings.Contains(f.Name(), ".")) {
-			fmt.Println(f.Name())
+			foldernames = append(foldernames, f.Name())
 		}
 	}
-	return "true"
+	return mdbnames, accdbnames, foldernames
 }
 
-func findtable(conn *sql.DB) string {
-	//Currently only works with .mdb. .accdb does not have permission
+func findtable(conn *sql.DB) []string {
+	//Iterates through all the tables in the database.
+	//Currently only works with .mdb. .accdb does not have permission.
+	var tablenames []string
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
 	if err != nil {
 		fmt.Println(err)
-		return "QFailed"
+		return "Query Failed"
 	}
 	defer rows.Close()
 
@@ -99,31 +105,73 @@ func findtable(conn *sql.DB) string {
 		if err != nil {
 			fmt.Println("Select Row Failed")
 		}
-		fmt.Println(table)
+		tablenames = append(tablenames, table)
 	}
-	return "true"
+	return tablenames
+}
+
+func connectandexecute(dir string, mdbnames []string) string {
+
+	for _, mdbname := range mdbnames {
+		dbq := dir + mdbname
+		conn, err := sql.Open("mgodbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
+		if err != nil {
+			fmt.Println("Connecting Error")
+			return "Failed"
+		}
+		//Originating Database connection established
+		tablenames := findtable(conn)
+
+		file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			fmt.Println("Could not open text file")
+			return "Failed"
+		}
+
+		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
+
+		tablenames := findtable(conn)
+		for _, tablename := range tablenames {
+			inserted := selectAccess(conn, file, tablename)
+			fmt.Printf("Total Number of Rows Read= %d\n", inserted)
+		}
+		conn.Close()
+		file.Close()
+	}
+	return "Files Closed and Function Executed"
+}
+
+func dbPresent(dir string, mdbnames []string, accdbnames []string) {
+	//Checks if there are mdbnames or accdbnames and then executes the code to connect to the DB
+	var result string
+
+	if len(mdbnames) != 0 {
+		connectandexecute(dir, mdbnames)
+		result += "mdb Executed"
+	} else {
+		result += "mdb Empty"
+	}
+
+	if len(accdbnames) != 0 {
+		connectandexecute(dir, accdbnames)
+		result += "accdb Executed"
+	} else {
+		result += "accdb Empty"
+	}
+	return result
 }
 
 func main() {
 
-	//Iterate through Files, finds folders, .accdb,and .mdb
-	//Check if file is a followup/peri op**
-	//if so, parse the necessary fields**
+	dir := "./"
+	mdbnames, accdbnames, foldernames := findDB(dir)
+	dbPresent(dir, mdbnames, accdbnames)
 
-	conn, err := sql.Open("mgodbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=.\\TestDB.mdb;")
-	if err != nil {
-		fmt.Println("Connecting Error")
-		return
+	if len(foldernames) != 0 {
+		for _, foldername := range foldernames {
+			dir := "./" + foldername
+			mdbnames, accdbnames, foldername := findDB(dir)
+		}
 	}
-	defer conn.Close()
-	//Originating Database connection established
-	file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Println("Could not open text file")
-	}
-	defer file.Close()
-	//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
-	fmt.Println(findtable(conn))
-	inserted := selectAccess(conn, file)
-	fmt.Printf("Total Number of Rows Read= %d\n", inserted)
+
 }
