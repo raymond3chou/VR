@@ -25,7 +25,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	NumberofRows := 0
 	inserted := 0
 	//count number inserted
-	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, HomeNumber, PersonalNumber, Email FROM " + tablename)
+	rows, err := conn.Query("SELECT PTID, CHART, LNAME, FNAME, SEX, AGE, STREET, CITY, PROVINCE, POSTCODE, PHONEHOME,PHONEWORK,PHONECELL, EMAIL FROM " + tablename)
 	if err != nil {
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
@@ -41,24 +41,25 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			fname  string
 			sex    string
 			age    string
-			dob    string
 			street string
 			city   string
 			prov   string
 			pcode  string
 			hnum   string
-			pnum   string
-			email  string
+			wnum   string
+			cnum   string
+			email  sql.NullString //accounts for NULL entry
 		)
-		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &dob, &street, &city, &prov, &pcode, &hnum, &pnum, &email)
+		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &street, &city, &prov, &pcode, &hnum, &wnum, &cnum, &email)
 		if err != nil {
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
 			return inserted, NumberofRows
 		}
 		NumberofRows++
-		s := strings.Split(dob, "T")
-		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + s[0] + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + pnum + "|" + email
+
+		// s := strings.Split(dob, "T")
+		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + wnum + "|" + cnum + "|" + email.String
 
 		inserted += fileWrite(file, row)
 	}
@@ -128,6 +129,7 @@ func findtable(conn *sql.DB) []string {
 }
 
 func matchTable(tablenames []string, match string) []string {
+	//finds tables with names that matches the match string and then returns a slice of the tables
 	var PHItablenames []string
 	for _, tablename := range tablenames {
 		if strings.Contains(tablename, match) {
@@ -138,6 +140,8 @@ func matchTable(tablenames []string, match string) []string {
 }
 
 func connectandexecute(dir string, dbnames []string) string {
+	//Connects to Database and File.
+	//Calls matchTable Function and then iterates through the tables using SelectAccess
 	var dbaccessed int
 	for _, dbname := range dbnames {
 		dbq := dir + "/" + dbname
