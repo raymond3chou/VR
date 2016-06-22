@@ -110,6 +110,16 @@ func findtable(conn *sql.DB) []string {
 	return tablenames
 }
 
+func cleantable(tablenames []string, match string) {
+	var PHItablenames []string
+	for _, tablename := range tablenames {
+		if strings.Contains(tablename, match) {
+			PHItablenames = append(PHItablenames, tablename)
+		}
+	}
+	return PHItablenames
+}
+
 func connectandexecute(dir string, mdbnames []string) string {
 
 	for _, mdbname := range mdbnames {
@@ -120,7 +130,7 @@ func connectandexecute(dir string, mdbnames []string) string {
 			return "Failed"
 		}
 		//Originating Database connection established
-		tablenames := findtable(conn)
+		tablenames := cleantable(findtable(conn), "FU")
 
 		file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
@@ -161,17 +171,24 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) {
 	return result
 }
 
+func gothroughfolder(foldernames []string, dir string) bool {
+	if len(foldernames) != 0 {
+		for _, foldername := range foldernames {
+			dir = "/" + foldername
+			mdbnames, accdbnames, newfoldernames := findDB(dir)
+			dbPresent(dir, mdbnames, accdbnames)
+			gothroughfolder(newfoldernames, dir)
+		}
+	} else {
+		return false
+	}
+
+}
 func main() {
 
 	dir := "./"
 	mdbnames, accdbnames, foldernames := findDB(dir)
 	dbPresent(dir, mdbnames, accdbnames)
-
-	if len(foldernames) != 0 {
-		for _, foldername := range foldernames {
-			dir := "./" + foldername
-			mdbnames, accdbnames, foldername := findDB(dir)
-		}
-	}
+	gothroughfolder(foldernames, dir)
 
 }
