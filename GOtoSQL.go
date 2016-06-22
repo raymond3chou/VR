@@ -6,19 +6,30 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	_ "github.com/miquella"
 )
 
-func selectAccess(conn *sql.DB, file *os.File, tablename string) int {
+var (
+	numtables    int
+	numfiles     int
+	numfolders   int
+	rowsinserted int
+)
+
+func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
+	//returns # inserted
+	NumberofRows := 0
 	inserted := 0
 	//count number inserted
-	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, H_NUM, PNUM, Email FROM " + tablename)
+	rows, err := conn.Query("SELECT PTID, CHART, LName, FName, SEX, AGE, DOB, STREET, CITY, PROV, PCODE, HomeNumber, PersonalNumber, Email FROM " + tablename)
 	if err != nil {
-		fmt.Println("Query Failed")
-		return 0
+		fmt.Println("Select query failed to execute " + tablename)
+		fmt.Println(err)
+		return 0, 0
 	}
 	defer rows.Close()
 	//queried Oringinal DB for ***
@@ -41,9 +52,11 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) int {
 		)
 		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &dob, &street, &city, &prov, &pcode, &hnum, &pnum, &email)
 		if err != nil {
-			fmt.Println("Select Row Failed")
-			return inserted
+			fmt.Println("Read row failed. Not enough parameters?")
+			fmt.Println(err)
+			return inserted, NumberofRows
 		}
+		NumberofRows++
 		s := strings.Split(dob, "T")
 		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + s[0] + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + pnum + "|" + email
 
@@ -52,11 +65,11 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) int {
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
 	if err != nil {
-		fmt.Println("Select Failed")
-		return inserted
+		fmt.Println("rows.Err failure")
+		return inserted, NumberofRows
 	}
 	// //flag errors from querying Oringinating DB
-	return inserted
+	return inserted, NumberofRows
 }
 
 func fileWrite(file *os.File, row string) int {
@@ -75,12 +88,15 @@ func findDB(dir string) ([]string, []string, []string) {
 	var accdbnames []string
 	var foldernames []string
 
-	files, _ := ioutil.ReadDir(dir)
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		fmt.Println(err)
+	}
 	for _, f := range files {
 		if strings.Contains(f.Name(), ".accdb") {
-			mdbnames = append(mdbnames, f.Name())
-		} else if strings.Contains(f.Name(), ".mdb") {
 			accdbnames = append(accdbnames, f.Name())
+		} else if strings.Contains(f.Name(), ".mdb") {
+			mdbnames = append(mdbnames, f.Name())
 		} else if !(strings.Contains(f.Name(), ".")) {
 			foldernames = append(foldernames, f.Name())
 		}
@@ -94,8 +110,9 @@ func findtable(conn *sql.DB) []string {
 	var tablenames []string
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
 	if err != nil {
+		fmt.Println("Failed to Select Tablenames")
 		fmt.Println(err)
-		return "Query Failed"
+		return tablenames
 	}
 	defer rows.Close()
 
@@ -103,14 +120,14 @@ func findtable(conn *sql.DB) []string {
 		var table string
 		err = rows.Scan(&table)
 		if err != nil {
-			fmt.Println("Select Row Failed")
+			fmt.Println("Failed to pass tablenames")
 		}
 		tablenames = append(tablenames, table)
 	}
 	return tablenames
 }
 
-func cleantable(tablenames []string, match string) {
+func matchTable(tablenames []string, match string) []string {
 	var PHItablenames []string
 	for _, tablename := range tablenames {
 		if strings.Contains(tablename, match) {
@@ -120,75 +137,104 @@ func cleantable(tablenames []string, match string) {
 	return PHItablenames
 }
 
-func connectandexecute(dir string, mdbnames []string) string {
-
-	for _, mdbname := range mdbnames {
-		dbq := dir + mdbname
+func connectandexecute(dir string, dbnames []string) string {
+	var dbaccessed int
+	for _, dbname := range dbnames {
+		dbq := dir + "/" + dbname
+		fmt.Println("Connecting to " + dbq)
 		conn, err := sql.Open("mgodbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 		if err != nil {
-			fmt.Println("Connecting Error")
-			return "Failed"
+			return "Connecting Error"
 		}
+		fmt.Println("Connected to " + dbq)
+		dbaccessed++
 		//Originating Database connection established
-		tablenames := cleantable(findtable(conn), "FU")
-
-		file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
-		if err != nil {
-			fmt.Println("Could not open text file")
-			return "Failed"
-		}
-
-		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
 
 		tablenames := findtable(conn)
+		tablelength := len(tablenames)
+		fmt.Printf("%d Tables in %s\n", tablelength, dbname)
+
+		if len(tablenames) != 0 {
+			tablenames = matchTable(tablenames, "Info")
+			fmt.Printf("%d/%d Tables Match the Criteria\n", len(tablenames), tablelength)
+		} else {
+			return "No Table Names"
+		}
+		file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			return "Could not open text file"
+		}
+		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
+		var tableused int
 		for _, tablename := range tablenames {
-			inserted := selectAccess(conn, file, tablename)
-			fmt.Printf("Total Number of Rows Read= %d\n", inserted)
+			inserted, NumberofRows := selectAccess(conn, file, tablename)
+			fmt.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, NumberofRows)
+			tableused++
+			rowsinserted += inserted
 		}
 		conn.Close()
 		file.Close()
+		fmt.Printf("%s Closed and %d Table(s) Extracted\n", dbname, tableused)
+		numtables += tableused
 	}
-	return "Files Closed and Function Executed"
+	result := strconv.Itoa(dbaccessed) + " Files Accessed and Closed"
+	numfiles += dbaccessed
+	return result
 }
 
-func dbPresent(dir string, mdbnames []string, accdbnames []string) {
+func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 	//Checks if there are mdbnames or accdbnames and then executes the code to connect to the DB
 	var result string
 
 	if len(mdbnames) != 0 {
-		connectandexecute(dir, mdbnames)
-		result += "mdb Executed"
+		results := connectandexecute(dir, mdbnames)
+		fmt.Println(results)
+		result += ".mdb Files Executed"
 	} else {
-		result += "mdb Empty"
+		result += ".mdb Files Empty"
 	}
-
-	if len(accdbnames) != 0 {
-		connectandexecute(dir, accdbnames)
-		result += "accdb Executed"
-	} else {
-		result += "accdb Empty"
-	}
+	//
+	// if len(accdbnames) != 0 {
+	// 	fmt.Println(connectandexecute(dir, accdbnames))
+	// 	result += "accdb Executed"
+	// } else {
+	// 	result += "accdb Empty"
+	// }
 	return result
 }
 
 func gothroughfolder(foldernames []string, dir string) bool {
 	if len(foldernames) != 0 {
 		for _, foldername := range foldernames {
-			dir = "/" + foldername
+			dir = dir + foldername
+			fmt.Printf("\nEntering Folder Directory: %s\n", dir)
+			numfolders++
 			mdbnames, accdbnames, newfoldernames := findDB(dir)
-			dbPresent(dir, mdbnames, accdbnames)
+			printDirInfo(mdbnames, accdbnames, foldernames, dir)
+			result := dbPresent(dir, mdbnames, accdbnames)
+			fmt.Printf("\n%s \n", result)
+			dir += "/"
 			gothroughfolder(newfoldernames, dir)
 		}
-	} else {
-		return false
 	}
-
+	return true
 }
+
+func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, dir string) {
+	//prints out the info for the current folder
+	fmt.Printf("Number of .mdb files in %s: %d \nNumber of .accdb files in %s: %d \nNumber of Folders in %s: %d\n\n", dir, len(mdbnames), dir, len(accdbnames), dir, len(foldernames))
+}
+
 func main() {
 
 	dir := "./"
 	mdbnames, accdbnames, foldernames := findDB(dir)
-	dbPresent(dir, mdbnames, accdbnames)
-	gothroughfolder(foldernames, dir)
+	printDirInfo(mdbnames, accdbnames, foldernames, dir)
+	result := dbPresent(dir, mdbnames, accdbnames)
+	fmt.Printf("\n%s \n", result)
+	status := gothroughfolder(foldernames, dir)
+	if status == true {
+		fmt.Printf("Complete:\nFolders Accessed: %d\nFiles Accessed: %d\nTables Accessed: %d\nRows Inserted: %d", numfolders, numfiles, numtables, rowsinserted)
+	}
 
 }
