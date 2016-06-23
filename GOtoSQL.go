@@ -20,13 +20,87 @@ var ( //Global Variables to Track files accessed
 	rowsinserted int
 )
 
+func checkfollowup(conn *sql.DB, tablename string) (bool, string) {
+	var query string
+	FU := false
+	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
+	if err != nil {
+		fmt.Println(err)
+	}
+	column, err := rows.Columns()
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, columnname := range column {
+		if columnname == "FU_D" {
+			FU = true
+		}
+		if columnname == "DIED" {
+			FU = true
+		}
+		if columnname == "DTH_D" {
+			FU = true
+		}
+		if columnname == "PTID" {
+			query += " PTID,"
+		}
+		if columnname == "CHART" {
+			query += " CHART,"
+		}
+		if columnname == "LNAME" {
+			query += " LNAME,"
+		}
+		if columnname == "FNAME" {
+			query += " FNAME,"
+		}
+		if columnname == "SEX" {
+			query += " SEX,"
+		}
+		if columnname == "AGE" {
+			query += " AGE,"
+		}
+		if columnname == "STREET" {
+			query += " STREET,"
+		}
+		if columnname == "CITY" {
+			query += " CITY,"
+		}
+		if columnname == "PROVINCE" {
+			query += " PROVINCE,"
+		}
+		if columnname == "POSTCODE" {
+			query += " POSTCODE,"
+		}
+		if columnname == "PHONEHOME" {
+			query += " PHONEHOME,"
+		}
+		if columnname == "PHONEWORK" {
+			query += " PHONEWORK,"
+		}
+		if columnname == "PHONECELL" {
+			query += " PHONECELL,"
+		}
+		if columnname == "EMAIL" {
+			query += " EMAIL"
+		}
+	}
+	return FU, query
+}
+
 func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
 	//returns # inserted
+	var selectquery string
+	FU, query := checkfollowup(conn, tablename)
+	if FU {
+		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
+	} else {
+		return 0, 0
+	}
 	NumberofRows := 0
 	inserted := 0
 	//count number inserted
-	rows, err := conn.Query("SELECT PTID, CHART, LNAME, FNAME, SEX, AGE, STREET, CITY, PROVINCE, POSTCODE, PHONEHOME,PHONEWORK,PHONECELL, EMAIL FROM [" + tablename + "]")
+	rows, err := conn.Query(selectquery)
 	if err != nil {
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
@@ -41,7 +115,6 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			lname  string
 			fname  string
 			sex    string
-			age    string
 			street string
 			city   string
 			prov   string
@@ -51,7 +124,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			cnum   sql.NullString
 			email  sql.NullString //accounts for NULL entry
 		)
-		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &street, &city, &prov, &pcode, &hnum, &wnum, &cnum, &email)
+		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &street, &city, &prov, &pcode, &hnum, &wnum, &cnum, &email)
 		if err != nil {
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
@@ -60,7 +133,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		NumberofRows++
 
 		// s := strings.Split(dob, "T")
-		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum.String + "|" + wnum.String + "|" + cnum.String + "|" + email.String
+		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum.String + "|" + wnum.String + "|" + cnum.String + "|" + email.String
 
 		inserted += fileWrite(file, row)
 	}
@@ -180,7 +253,7 @@ func connectandexecute(dir string, dbnames []string) string {
 		fmt.Printf("%d Tables in %s\n", tablelength, dbname)
 
 		if len(tablenames) != 0 {
-			tablenames = matchTable(tablenames, "Info")
+			tablenames = matchTable(tablenames, "FU")
 			fmt.Printf("%d/%d Tables Match the Criteria\n", len(tablenames), tablelength)
 		} else {
 			return "No Table Names"
