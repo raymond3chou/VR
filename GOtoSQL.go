@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/alexbrainman/odbc"
 )
@@ -254,14 +255,15 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
+	start := time.Now()
+	fmt.Println("\n\n------START OF PROGRAM------")
 
 	dir := "./"
-	mdbnames, accdbnames, foldernames := findDB(dir)
-	printDirInfo(mdbnames, accdbnames, foldernames, dir)
-	result := dbPresent(dir, mdbnames, accdbnames)
-	fmt.Printf("\n%s \n", result)
+	foldernames := []string{""}
 	status := gothroughfolder(foldernames, dir)
+
 	if status == true {
-		fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d", numfolders, numfiles, numtables, rowsinserted)
+		elapsed := time.Since(start)
+		fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d\nTime Taken: %s", numfolders, numfiles, numtables, rowsinserted, elapsed)
 	}
 }
