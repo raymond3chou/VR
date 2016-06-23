@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	_ "github.com/miquella"
+	_ "github.com/alexbrainman/odbc"
 )
 
 var (
@@ -146,7 +146,7 @@ func connectandexecute(dir string, dbnames []string) string {
 	for _, dbname := range dbnames {
 		dbq := dir + "/" + dbname
 		fmt.Println("Connecting to " + dbq)
-		conn, err := sql.Open("mgodbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
+		conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 		if err != nil {
 			return "Connecting Error"
 		}
