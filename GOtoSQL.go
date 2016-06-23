@@ -12,7 +12,7 @@ import (
 	_ "github.com/alexbrainman/odbc"
 )
 
-var (
+var ( //Global Variables to Track files accessed
 	numtables    int
 	numfiles     int
 	numfolders   int
@@ -25,7 +25,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	NumberofRows := 0
 	inserted := 0
 	//count number inserted
-	rows, err := conn.Query("SELECT PTID, CHART, LNAME, FNAME, SEX, AGE, STREET, CITY, PROVINCE, POSTCODE, PHONEHOME,PHONEWORK,PHONECELL, EMAIL FROM " + tablename)
+	rows, err := conn.Query("SELECT PTID, CHART, LNAME, FNAME, SEX, AGE, STREET, CITY, PROVINCE, POSTCODE, PHONEHOME,PHONEWORK,PHONECELL, EMAIL FROM [" + tablename + "]")
 	if err != nil {
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
@@ -45,9 +45,9 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			city   string
 			prov   string
 			pcode  string
-			hnum   string
-			wnum   string
-			cnum   string
+			hnum   sql.NullString
+			wnum   sql.NullString
+			cnum   sql.NullString
 			email  sql.NullString //accounts for NULL entry
 		)
 		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &age, &street, &city, &prov, &pcode, &hnum, &wnum, &cnum, &email)
@@ -59,7 +59,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		NumberofRows++
 
 		// s := strings.Split(dob, "T")
-		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum + "|" + wnum + "|" + cnum + "|" + email.String
+		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + age + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum.String + "|" + wnum.String + "|" + cnum.String + "|" + email.String
 
 		inserted += fileWrite(file, row)
 	}
@@ -109,6 +109,7 @@ func findtable(conn *sql.DB) []string {
 	//Iterates through all the tables in the database.
 	//Currently only works with .mdb. .accdb does not have permission.
 	var tablenames []string
+
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
 	if err != nil {
 		fmt.Println("Failed to Select Tablenames")
@@ -139,19 +140,38 @@ func matchTable(tablenames []string, match string) []string {
 	return PHItablenames
 }
 
+func connectToDB(dir string, dbname string) (*sql.DB, bool) {
+
+	dbq := dir + "/" + dbname
+	fmt.Println("Connecting to " + dbq)
+	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
+	if err != nil {
+		fmt.Println("Connection to " + dbq + " Failed")
+		return conn, false
+	}
+	fmt.Println("Connected to " + dbq)
+	return conn, true
+}
+
+func connectToTxt() (*os.File, bool) {
+	file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		return file, false
+	}
+	return file, true
+}
+
 func connectandexecute(dir string, dbnames []string) string {
 	//Connects to Database and File.
 	//Calls matchTable Function and then iterates through the tables using SelectAccess
 	var dbaccessed int
 	for _, dbname := range dbnames {
-		dbq := dir + "/" + dbname
-		fmt.Println("Connecting to " + dbq)
-		conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
-		if err != nil {
-			return "Connecting Error"
+		conn, connection := connectToDB(dir, dbname)
+		if connection {
+			dbaccessed++
+		} else {
+			continue
 		}
-		fmt.Println("Connected to " + dbq)
-		dbaccessed++
 		//Originating Database connection established
 
 		tablenames := findtable(conn)
@@ -164,9 +184,13 @@ func connectandexecute(dir string, dbnames []string) string {
 		} else {
 			return "No Table Names"
 		}
-		file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
-		if err != nil {
-			return "Could not open text file"
+
+		file, connection := connectToTxt()
+		if connection {
+			fmt.Println("Text File Opened")
+		} else {
+			fmt.Println("Unable to Open Text File")
+			continue
 		}
 		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
 		var tableused int
@@ -178,10 +202,10 @@ func connectandexecute(dir string, dbnames []string) string {
 		}
 		conn.Close()
 		file.Close()
-		fmt.Printf("%s Closed and %d Table(s) Extracted\n", dbname, tableused)
+		fmt.Printf("%s Closed and %d Table(s) Extracted\n ---------------------------\n", dbname, tableused)
 		numtables += tableused
 	}
-	result := strconv.Itoa(dbaccessed) + " Files Accessed and Closed"
+	result := "File(s) Accessed and Closed: " + strconv.Itoa(dbaccessed)
 	numfiles += dbaccessed
 	return result
 }
@@ -192,18 +216,18 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 
 	if len(mdbnames) != 0 {
 		results := connectandexecute(dir, mdbnames)
-		fmt.Println(results)
+		fmt.Println(results + "\n*************************\n")
 		result += ".mdb Files Executed"
 	} else {
 		result += ".mdb Files Empty"
 	}
-	//
-	// if len(accdbnames) != 0 {
-	// 	fmt.Println(connectandexecute(dir, accdbnames))
-	// 	result += "accdb Executed"
-	// } else {
-	// 	result += "accdb Empty"
-	// }
+
+	if len(accdbnames) != 0 {
+		fmt.Println(connectandexecute(dir, accdbnames) + "\n*************************\n")
+		result += " .accdb Files Executed"
+	} else {
+		result += " .accdb Files Empty"
+	}
 	return result
 }
 
@@ -238,7 +262,6 @@ func main() {
 	fmt.Printf("\n%s \n", result)
 	status := gothroughfolder(foldernames, dir)
 	if status == true {
-		fmt.Printf("Complete:\nFolders Accessed: %d\nFiles Accessed: %d\nTables Accessed: %d\nRows Inserted: %d", numfolders, numfiles, numtables, rowsinserted)
+		fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d", numfolders, numfiles, numtables, rowsinserted)
 	}
-
 }
