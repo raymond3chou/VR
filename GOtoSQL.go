@@ -87,6 +87,26 @@ func checkfollowup(conn *sql.DB, tablename string) (bool, string) {
 	return FU, query
 }
 
+func convertToString(vals []interface{}) []string {
+	row := make([]string, len(vals))
+	for i, val := range vals {
+		value := val.(*sql.NullString)
+		row[i] = value.String
+	}
+	return row
+}
+
+func convertToText(rowstring []string) string {
+	var row string
+	var i int
+	row = "\n"
+	for i = 0; i < len(rowstring)-1; i++ {
+		row += rowstring[i] + "|"
+	}
+	row += rowstring[i]
+	return row
+}
+
 func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
 	//returns # inserted
@@ -108,33 +128,26 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	}
 	defer rows.Close()
 	//queried Oringinal DB for ***
+	cols, err := rows.Columns()
+	if err != nil {
+		fmt.Println(err)
+	}
+	vals := make([]interface{}, len(cols))
+	for i := range cols {
+		vals[i] = new(sql.NullString)
+	}
+
 	for rows.Next() {
-		var (
-			ptid   string
-			chart  string
-			lname  string
-			fname  string
-			sex    string
-			street string
-			city   string
-			prov   string
-			pcode  string
-			hnum   sql.NullString
-			wnum   sql.NullString
-			cnum   sql.NullString
-			email  sql.NullString //accounts for NULL entry
-		)
-		err = rows.Scan(&ptid, &chart, &lname, &fname, &sex, &street, &city, &prov, &pcode, &hnum, &wnum, &cnum, &email)
+
+		err = rows.Scan(vals...)
 		if err != nil {
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
 			return inserted, NumberofRows
 		}
 		NumberofRows++
-
-		// s := strings.Split(dob, "T")
-		row := "\n" + ptid + "|" + chart + "|" + lname + "|" + fname + "|" + sex + "|" + street + "|" + city + "|" + prov + "|" + pcode + "|" + hnum.String + "|" + wnum.String + "|" + cnum.String + "|" + email.String
-
+		rowstring := convertToString(vals)
+		row := convertToText(rowstring)
 		inserted += fileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
