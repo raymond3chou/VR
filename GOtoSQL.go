@@ -218,13 +218,13 @@ func findtable(conn *sql.DB) []string {
 
 func matchTable(tablenames []string, match string) []string {
 	//finds tables with names that matches the match string and then returns a slice of the tables
-	var PHItablenames []string
+	var phitablenames []string
 	for _, tablename := range tablenames {
 		if strings.Contains(tablename, match) {
-			PHItablenames = append(PHItablenames, tablename)
+			phitablenames = append(phitablenames, tablename)
 		}
 	}
-	return PHItablenames
+	return phitablenames
 }
 
 func connectToDB(dir string, dbname string) (*sql.DB, bool) {
