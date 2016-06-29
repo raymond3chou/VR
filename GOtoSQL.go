@@ -31,7 +31,7 @@ func errorWrite(issue string) {
 		fmt.Println("Unable to Open Text File")
 		return
 	}
-	fileWrite(file, issue)
+	fileWrite(file, issue+"\n")
 	file.Close()
 }
 
