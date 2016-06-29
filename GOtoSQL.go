@@ -23,17 +23,34 @@ var ( //Global Variables to Track files accessed
 //Sort the Columns
 //fill the empty or not present columns with empty cells
 //Error handling ie writing to a new .txt
+func errorWrite(issue string) {
+	file, conn := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ErrorLog.txt")
+	if conn {
+		fmt.Println("Text File Opened")
+	} else {
+		fmt.Println("Unable to Open Text File")
+		return
+	}
+	fileWrite(file, issue)
+	file.Close()
+}
 
 func checkfollowup(conn *sql.DB, tablename string) (bool, map[string]int, string) {
 	FU := false
+	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
 	if err != nil {
+		issue := "Cant Run SELECT * FROM [" + tablename + "]"
 		fmt.Println(err)
+		errorWrite(issue)
 	}
+	//Returns the Columns from the QUERY
 	column, err := rows.Columns()
 	if err != nil {
 		fmt.Println(err)
+		errorWrite(err.Error())
 	}
+
 	maincolumns := map[string]int{"PTID": 0, "CHART": 0, "LNAME": 0, "FNAME": 0, "SEX": 0, "AGE": 0, "STREET": 0, "CITY": 0, "PROVINCE": 0, "POSTCODE": 0, "PHONEHOME": 0, "PHONEWORK": 0, "PHONECELL": 0, "EMAIL": 0, "DOB": 0}
 	var query string
 	for _, columnname := range column {
@@ -76,7 +93,9 @@ func convertToText(rowstring []string, maincolumns map[string]int) string {
 			row += rowstring[i] + "|"
 			i++
 		} else {
-			fmt.Printf("Duplicate Column: %s", colname)
+			issue := "Duplicate Column: " + colname
+			fmt.Println(issue)
+			errorWrite(issue)
 		}
 	}
 	row += rowstring[i]
@@ -93,6 +112,8 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	if FU {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else {
+		issue := tablename + " is not a Follow Up Table"
+		errorWrite(issue)
 		return 0, 0
 	}
 	NumberofRows := 0
@@ -100,8 +121,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//count number inserted
 	rows, err := conn.Query(selectquery)
 	if err != nil {
+		issue := "Select query failed to execute " + tablename
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
+		errorWrite(issue)
 		return 0, 0
 	}
 	defer rows.Close()
@@ -118,8 +141,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	for rows.Next() {
 		err = rows.Scan(vals...)
 		if err != nil {
+			issue := "Read row failed. Not enough parameters in: " + tablename
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
+			errorWrite(issue)
 			return inserted, NumberofRows
 		}
 		NumberofRows++
@@ -131,6 +156,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	err = rows.Err()
 	if err != nil {
 		fmt.Println("rows.Err failure")
+		errorWrite(err.Error())
 		return inserted, NumberofRows
 	}
 	// //flag errors from querying Oringinating DB
@@ -217,11 +243,16 @@ func connectToDB(dir string, dbname string) (*sql.DB, bool) {
 	return conn, true
 }
 
-func connectToTxt() (*os.File, bool) {
-	file, err := os.OpenFile("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt", os.O_APPEND|os.O_RDWR, 0666)
+func connectToTxt(filedir string) (*os.File, bool) {
+
+	file, err := os.OpenFile(filedir, os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
+		fmt.Printf("Unable to Open Text File: %s", filedir)
+		fmt.Print(err)
+		errorWrite(err.Error())
 		return file, false
 	}
+	fmt.Println("Text File Opened")
 	return file, true
 }
 
@@ -249,11 +280,8 @@ func connectandexecute(dir string, dbnames []string) string {
 			return "No Table Names"
 		}
 
-		file, connection := connectToTxt()
-		if connection {
-			fmt.Println("Text File Opened")
-		} else {
-			fmt.Println("Unable to Open Text File")
+		file, connection := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt")
+		if !connection {
 			continue
 		}
 		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE

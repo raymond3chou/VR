@@ -2,6 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -44,20 +47,50 @@ func TestConvertToString(t *testing.T) {
 		t.Log("convertToString Works")
 	}
 }
-func TestConvertToText(t *testing.T) {
-	rowstring := make([]string, 10)
-	for i := range rowstring {
-		rowstring[i] = "Hello1&3"
+
+// func TestConvertToText(t *testing.T) {
+// 	rowstring := make([]string, 10)
+// 	for i := range rowstring {
+// 		rowstring[i] = "Hello1&3"
+// 	}
+// 	var maincol map[string]int
+// 	actualrow := convertToText(rowstring, maincol)
+// 	expectedrow := "\nHello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3"
+// 	if actualrow == expectedrow {
+// 		t.Error("convertToText Works")
+// 	} else {
+// 		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
+// 	}
+// }
+func readFile(filename string) string {
+	fileoutput, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Println(err)
 	}
-	var maincol map[string]int
-	actualrow := convertToText(rowstring, maincol)
-	expectedrow := "\nHello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3"
-	if actualrow == expectedrow {
-		t.Error("convertToText Works")
-	} else {
-		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
-	}
+	return string(fileoutput)
 }
 func TestFileWrite(t *testing.T) {
+	path := "C:\\Users\\raymond chou\\Desktop\\TestFile.txt"
 
+	var f, err = os.Create(path)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	f.Close()
+
+	file, _ := connectToTxt(path)
+	row := "Hello World 1234..."
+	fileWrite(file, row)
+	file.Close()
+	actualrow := readFile(path)
+	if row != actualrow {
+		t.Errorf("Read %s but Wrote %s", actualrow, row)
+	} else {
+		t.Log("File Write Works")
+	}
+	err = os.Remove(path)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
