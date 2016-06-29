@@ -35,7 +35,7 @@ func errorWrite(issue string) {
 	file.Close()
 }
 
-func checkfollowup(conn *sql.DB, tablename string) (bool, map[string]int, string) {
+func checkfollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	FU := false
 	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
@@ -51,10 +51,10 @@ func checkfollowup(conn *sql.DB, tablename string) (bool, map[string]int, string
 		errorWrite(err.Error())
 	}
 
-	maincolumns := map[string]int{"PTID": 0, "CHART": 0, "LNAME": 0, "FNAME": 0, "SEX": 0, "AGE": 0, "STREET": 0, "CITY": 0, "PROVINCE": 0, "POSTCODE": 0, "PHONEHOME": 0, "PHONEWORK": 0, "PHONECELL": 0, "EMAIL": 0, "DOB": 0}
+	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB"}
 	var query string
 	for _, columnname := range column {
-		for maincolname := range maincolumns {
+		for _, maincolname := range maincolumns {
 			if columnname == "FU_D" {
 				FU = true
 			}
@@ -66,7 +66,6 @@ func checkfollowup(conn *sql.DB, tablename string) (bool, map[string]int, string
 			}
 			if strings.Contains(columnname, maincolname) {
 				query += " " + columnname
-				maincolumns[maincolname]++
 			}
 		}
 	}
@@ -82,24 +81,35 @@ func convertToString(vals []interface{}) []string {
 	return row
 }
 
-func convertToText(rowstring []string, maincolumns map[string]int) string {
+func convertToText(maincolumns []string, cols map[string]string) string {
+	//takes in the queried row divided in an array of strings based off of the column
+	//maincolumns contains the master columns and a flag for which ever one was used
+	//the function arranges based on
 	var row string
-	i := 0
+	found := false
 	row = "\n"
-	for colname, incol := range maincolumns {
-		if incol == 0 {
+	for _, mastercol := range maincolumns {
+		for colname := range cols {
+			if strings.Contains(colname, mastercol) {
+				row += cols[colname] + "|"
+				found = true
+			}
+		}
+		if !found {
 			row += " |"
-		} else if incol == 1 {
-			row += rowstring[i] + "|"
-			i++
-		} else {
-			issue := "Duplicate Column: " + colname
-			fmt.Println(issue)
-			errorWrite(issue)
 		}
 	}
-	row += rowstring[i]
+	row = strings.TrimSuffix(row, "|")
 	return row
+}
+
+func convertToMap(cols map[string]string, rowstring []string) map[string]string {
+	for i := range rowstring {
+		for key := range cols {
+			cols[key] = rowstring[i]
+		}
+	}
+	return cols
 }
 
 func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
@@ -129,12 +139,17 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	}
 	defer rows.Close()
 	//queried Oringinal DB for ***
-	cols, err := rows.Columns()
+	queriedcols, err := rows.Columns()
 	if err != nil {
 		fmt.Println(err)
 	}
-	vals := make([]interface{}, len(cols))
-	for i := range cols {
+	colsmap := make(map[string]string)
+	for _, colname := range queriedcols {
+		colsmap[colname] = ""
+	}
+
+	vals := make([]interface{}, len(queriedcols))
+	for i := range queriedcols {
 		vals[i] = new(sql.NullString)
 	}
 
@@ -149,7 +164,8 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		}
 		NumberofRows++
 		rowstring := convertToString(vals)
-		row := convertToText(rowstring, maincolumns)
+		cols := convertToMap(colsmap, rowstring)
+		row := convertToText(maincolumns, cols)
 		inserted += fileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
@@ -252,7 +268,6 @@ func connectToTxt(filedir string) (*os.File, bool) {
 		errorWrite(err.Error())
 		return file, false
 	}
-	fmt.Println("Text File Opened")
 	return file, true
 }
 

@@ -27,10 +27,9 @@ func TestMatchTable(t *testing.T) {
 	}
 	if nummatched != len(expectedPHItablenames) {
 		t.Errorf("TestMatchTable failed because %d matched instead of %d", nummatched, len(expectedPHItablenames))
-	} else {
-		t.Log("MatchTable Works")
 	}
 }
+
 func TestConvertToString(t *testing.T) {
 	vals := make([]interface{}, 10)
 	for i := 0; i < 10; i++ {
@@ -43,25 +42,23 @@ func TestConvertToString(t *testing.T) {
 
 	if actualtype != expectedtype {
 		t.Errorf("TestConvertToString failed because actual type is %s whereas expected type is %s", actualtype, expectedtype)
-	} else {
-		t.Log("convertToString Works")
 	}
 }
 
-// func TestConvertToText(t *testing.T) {
-// 	rowstring := make([]string, 10)
-// 	for i := range rowstring {
-// 		rowstring[i] = "Hello1&3"
-// 	}
-// 	var maincol map[string]int
-// 	actualrow := convertToText(rowstring, maincol)
-// 	expectedrow := "\nHello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3"
-// 	if actualrow == expectedrow {
-// 		t.Error("convertToText Works")
-// 	} else {
-// 		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
-// 	}
-// }
+func TestConvertToText(t *testing.T) {
+
+	maincol := []string{"A", "B", "C", "D", "E"}
+	cols := map[string]string{"A": "a", "B": "b", "C": "c", "D_wdad": "d"}
+	actualrow := convertToText(maincol, cols)
+	expectedrow := "\na|b|c|d"
+
+	if actualrow == expectedrow {
+
+	} else {
+		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
+	}
+}
+
 func readFile(filename string) string {
 	fileoutput, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -69,6 +66,7 @@ func readFile(filename string) string {
 	}
 	return string(fileoutput)
 }
+
 func TestFileWrite(t *testing.T) {
 	path := "C:\\Users\\raymond chou\\Desktop\\TestFile.txt"
 
@@ -86,8 +84,6 @@ func TestFileWrite(t *testing.T) {
 	actualrow := readFile(path)
 	if row != actualrow {
 		t.Errorf("Read %s but Wrote %s", actualrow, row)
-	} else {
-		t.Log("File Write Works")
 	}
 	err = os.Remove(path)
 	if err != nil {
