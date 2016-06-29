@@ -20,8 +20,11 @@ var ( //Global Variables to Track files accessed
 	rowsinserted int
 )
 
-func checkfollowup(conn *sql.DB, tablename string) (bool, string) {
-	var query string
+//Sort the Columns
+//fill the empty or not present columns with empty cells
+//Error handling ie writing to a new .txt
+
+func checkfollowup(conn *sql.DB, tablename string) (bool, map[string]int, string) {
 	FU := false
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
 	if err != nil {
@@ -31,60 +34,26 @@ func checkfollowup(conn *sql.DB, tablename string) (bool, string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+	maincolumns := map[string]int{"PTID": 0, "CHART": 0, "LNAME": 0, "FNAME": 0, "SEX": 0, "AGE": 0, "STREET": 0, "CITY": 0, "PROVINCE": 0, "POSTCODE": 0, "PHONEHOME": 0, "PHONEWORK": 0, "PHONECELL": 0, "EMAIL": 0, "DOB": 0}
+	var query string
 	for _, columnname := range column {
-		if columnname == "FU_D" {
-			FU = true
-		}
-		if columnname == "DIED" {
-			FU = true
-		}
-		if columnname == "DTH_D" {
-			FU = true
-		}
-		if columnname == "PTID" {
-			query += " PTID,"
-		}
-		if columnname == "CHART" {
-			query += " CHART,"
-		}
-		if columnname == "LNAME" {
-			query += " LNAME,"
-		}
-		if columnname == "FNAME" {
-			query += " FNAME,"
-		}
-		if columnname == "SEX" {
-			query += " SEX,"
-		}
-		if columnname == "AGE" {
-			query += " AGE,"
-		}
-		if columnname == "STREET" {
-			query += " STREET,"
-		}
-		if columnname == "CITY" {
-			query += " CITY,"
-		}
-		if columnname == "PROVINCE" {
-			query += " PROVINCE,"
-		}
-		if columnname == "POSTCODE" {
-			query += " POSTCODE,"
-		}
-		if columnname == "PHONEHOME" {
-			query += " PHONEHOME,"
-		}
-		if columnname == "PHONEWORK" {
-			query += " PHONEWORK,"
-		}
-		if columnname == "PHONECELL" {
-			query += " PHONECELL,"
-		}
-		if columnname == "EMAIL" {
-			query += " EMAIL"
+		for maincolname := range maincolumns {
+			if columnname == "FU_D" {
+				FU = true
+			}
+			if columnname == "DIED" {
+				FU = true
+			}
+			if columnname == "DTH_D" {
+				FU = true
+			}
+			if strings.Contains(columnname, maincolname) {
+				query += " " + columnname
+				maincolumns[maincolname]++
+			}
 		}
 	}
-	return FU, query
+	return FU, maincolumns, query
 }
 
 func convertToString(vals []interface{}) []string {
@@ -96,12 +65,19 @@ func convertToString(vals []interface{}) []string {
 	return row
 }
 
-func convertToText(rowstring []string) string {
+func convertToText(rowstring []string, maincolumns map[string]int) string {
 	var row string
-	var i int
+	i := 0
 	row = "\n"
-	for i = 0; i < len(rowstring)-1; i++ {
-		row += rowstring[i] + "|"
+	for colname, incol := range maincolumns {
+		if incol == 0 {
+			row += " |"
+		} else if incol == 1 {
+			row += rowstring[i] + "|"
+			i++
+		} else {
+			fmt.Printf("Duplicate Column: %s", colname)
+		}
 	}
 	row += rowstring[i]
 	return row
@@ -111,7 +87,9 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
 	//returns # inserted
 	var selectquery string
-	FU, query := checkfollowup(conn, tablename)
+	var query string
+
+	FU, maincolumns, query := checkfollowup(conn, tablename)
 	if FU {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else {
@@ -138,7 +116,6 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	}
 
 	for rows.Next() {
-
 		err = rows.Scan(vals...)
 		if err != nil {
 			fmt.Println("Read row failed. Not enough parameters?")
@@ -147,7 +124,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		}
 		NumberofRows++
 		rowstring := convertToString(vals)
-		row := convertToText(rowstring)
+		row := convertToText(rowstring, maincolumns)
 		inserted += fileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB

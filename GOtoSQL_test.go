@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+//create mock files to test database and files.
+//print errors
+//check if the function works and if it doesnt
 func TestMatchTable(t *testing.T) {
 	tablenames := []string{"contact info", "contactInfo", "contactin19fo", "infoinfo", "inf"}
 	match := "info"
@@ -46,7 +49,8 @@ func TestConvertToText(t *testing.T) {
 	for i := range rowstring {
 		rowstring[i] = "Hello1&3"
 	}
-	actualrow := convertToText(rowstring)
+	var maincol map[string]int
+	actualrow := convertToText(rowstring, maincol)
 	expectedrow := "\nHello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3|Hello1&3"
 	if actualrow == expectedrow {
 		t.Error("convertToText Works")
