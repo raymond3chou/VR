@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -26,16 +27,16 @@ var ( //Global Variables to Track files accessed
 func errorWrite(issue string) {
 	file, conn := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ErrorLog.txt")
 	if conn {
-		fmt.Println("Text File Opened")
+		fmt.Println("Error File Opened")
 	} else {
-		fmt.Println("Unable to Open Text File")
+		fmt.Println("Unable to Open Error File")
 		return
 	}
 	fileWrite(file, issue+"\n")
 	file.Close()
 }
 
-func checkfollowup(conn *sql.DB, tablename string) (bool, []string, string) {
+func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	FU := false
 	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
@@ -118,7 +119,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	var selectquery string
 	var query string
 
-	FU, maincolumns, query := checkfollowup(conn, tablename)
+	FU, maincolumns, query := checkFollowup(conn, tablename)
 	if FU {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else {
@@ -246,17 +247,16 @@ func matchTable(tablenames []string, match string) []string {
 	return phitablenames
 }
 
-func connectToDB(dir string, dbname string) (*sql.DB, bool) {
+func connectToDB(dir string, dbname string) *sql.DB {
 
 	dbq := dir + "/" + dbname
 	fmt.Println("Connecting to " + dbq)
 	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 	if err != nil {
-		fmt.Println("Connection to " + dbq + " Failed")
-		return conn, false
+		log.Fatal("Connection to " + dbq + " Failed")
 	}
 	fmt.Println("Connected to " + dbq)
-	return conn, true
+	return conn
 }
 
 func connectToTxt(filedir string) (*os.File, bool) {
@@ -276,8 +276,8 @@ func connectandexecute(dir string, dbnames []string) string {
 	//Calls matchTable Function and then iterates through the tables using SelectAccess
 	var dbaccessed int
 	for _, dbname := range dbnames {
-		conn, connection := connectToDB(dir, dbname)
-		if connection {
+		conn := connectToDB(dir, dbname)
+		if conn != nil {
 			dbaccessed++
 		} else {
 			continue

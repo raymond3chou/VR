@@ -90,3 +90,23 @@ func TestFileWrite(t *testing.T) {
 		fmt.Println(err)
 	}
 }
+
+func TestCheckFollowup(t *testing.T) {
+	actualqueryforT1 := " PTID CHART SEX STREET POSTCODE"
+	actualqueryforCopy := " CHART SEX STREET PTID POSTCODE"
+	tableArray := []string{"ContactInfo3", "Table1", "Copy Of Table1"}
+	conn := connectToDB("./", "TestDb.accdb")
+	defer conn.Close()
+	for _, tablename := range tableArray {
+		FU, _, query := checkFollowup(conn, tablename)
+		if tablename == "ContactInfo3" && FU == true {
+			t.Errorf("%s is not a Follow up table but function returns that it is", tablename)
+		}
+		if tablename == "Table1" && query != actualqueryforT1 {
+			t.Errorf("Actual Query for %s was %s not %s", tablename, query, actualqueryforT1)
+		}
+		if tablename == "Copy of Table1" && query != actualqueryforCopy {
+			t.Errorf("Actual Query for %s was %s not %s", tablename, query, actualqueryforCopy)
+		}
+	}
+}
