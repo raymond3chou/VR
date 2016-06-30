@@ -105,11 +105,18 @@ func convertToText(maincolumns []string, cols map[string]string) string {
 }
 
 func convertToMap(cols map[string]string, rowstring []string) map[string]string {
-	for i := range rowstring {
-		for key := range cols {
+	endindex := len(rowstring)
+	i := 0
+	for key := range cols {
+		if i < endindex {
 			cols[key] = rowstring[i]
+			i++
+		} else {
+			break
 		}
+
 	}
+
 	return cols
 }
 

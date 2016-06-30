@@ -58,7 +58,18 @@ func TestConvertToText(t *testing.T) {
 		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
 	}
 }
+func TestConvertToMap(t *testing.T) {
+	actualcols := map[string]string{"A": "", "B": "", "C": "", "D": "e"}
+	rowstring := []string{"a", "b", "", "d"}
+	expectedcols := map[string]string{"A": "a", "B": "b", "C": "", "D": "d"}
 
+	rowwithcols := convertToMap(actualcols, rowstring)
+	for col := range rowwithcols {
+		if actualcols[col] != expectedcols[col] {
+			t.Errorf("expectedcols[%s]='%s' instead of actualcols[%s]='%s'", col, actualcols[col], col, expectedcols[col])
+		}
+	}
+}
 func readFile(filename string) string {
 	fileoutput, err := ioutil.ReadFile(filename)
 	if err != nil {
