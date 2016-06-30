@@ -26,13 +26,11 @@ var ( //Global Variables to Track files accessed
 //Error handling ie writing to a new .txt
 func errorWrite(issue string) {
 	file, conn := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ErrorLog.txt")
-	if conn {
-		fmt.Println("Error File Opened")
-	} else {
+	if !conn {
 		fmt.Println("Unable to Open Error File")
 		return
 	}
-	fileWrite(file, issue+"\n")
+	fileWrite(file, issue)
 	file.Close()
 }
 
@@ -66,10 +64,11 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 				FU = true
 			}
 			if strings.Contains(columnname, maincolname) {
-				query += " " + columnname
+				query += " " + columnname + ","
 			}
 		}
 	}
+	query = strings.TrimSuffix(query, ",")
 	return FU, maincolumns, query
 }
 
@@ -90,10 +89,12 @@ func convertToText(maincolumns []string, cols map[string]string) string {
 	found := false
 	row = "\n"
 	for _, mastercol := range maincolumns {
+		found = false
 		for colname := range cols {
 			if strings.Contains(colname, mastercol) {
 				row += cols[colname] + "|"
 				found = true
+				break
 			}
 		}
 		if !found {
@@ -127,19 +128,23 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	var query string
 
 	FU, maincolumns, query := checkFollowup(conn, tablename)
-	if FU {
+	if FU && query != "" {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
+	} else if query == "" {
+		issue := tablename + " does not contain any columns related to PHI\n"
+		errorWrite(issue)
+		return 0, 0
 	} else {
-		issue := tablename + " is not a Follow Up Table"
+		issue := tablename + " is not a Follow Up Table\n"
 		errorWrite(issue)
 		return 0, 0
 	}
-	NumberofRows := 0
+	numberofRows := 0
 	inserted := 0
 	//count number inserted
 	rows, err := conn.Query(selectquery)
 	if err != nil {
-		issue := "Select query failed to execute " + tablename
+		issue := "Select query failed to execute " + tablename + "\n"
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
 		errorWrite(issue)
@@ -168,9 +173,9 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
 			errorWrite(issue)
-			return inserted, NumberofRows
+			return inserted, numberofRows
 		}
-		NumberofRows++
+		numberofRows++
 		rowstring := convertToString(vals)
 		cols := convertToMap(colsmap, rowstring)
 		row := convertToText(maincolumns, cols)
@@ -181,10 +186,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	if err != nil {
 		fmt.Println("rows.Err failure")
 		errorWrite(err.Error())
-		return inserted, NumberofRows
+		return inserted, numberofRows
 	}
 	// //flag errors from querying Oringinating DB
-	return inserted, NumberofRows
+	return inserted, numberofRows
 }
 
 func fileWrite(file *os.File, row string) int {
@@ -309,8 +314,8 @@ func connectandexecute(dir string, dbnames []string) string {
 		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
 		var tableused int
 		for _, tablename := range tablenames {
-			inserted, NumberofRows := selectAccess(conn, file, tablename)
-			fmt.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, NumberofRows)
+			inserted, numberofRows := selectAccess(conn, file, tablename)
+			fmt.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, numberofRows)
 			tableused++
 			rowsinserted += inserted
 		}
