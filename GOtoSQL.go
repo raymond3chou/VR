@@ -21,6 +21,11 @@ var ( //Global Variables to Track files accessed
 	rowsinserted int
 )
 
+type orderedMap struct {
+	colname string
+	value   string
+}
+
 //Sort the Columns
 //fill the empty or not present columns with empty cells
 //Error handling ie writing to a new .txt
@@ -81,7 +86,7 @@ func convertToString(vals []interface{}) []string {
 	return row
 }
 
-func convertToText(maincolumns []string, cols map[string]string) string {
+func convertToText(maincolumns []string, cols []orderedMap) string {
 	//takes in the queried row divided in an array of strings based off of the column
 	//maincolumns contains the master columns and a flag for which ever one was used
 	//the function arranges based on
@@ -90,27 +95,28 @@ func convertToText(maincolumns []string, cols map[string]string) string {
 	row = "\n"
 	for _, mastercol := range maincolumns {
 		found = false
-		for colname := range cols {
-			if strings.Contains(colname, mastercol) {
-				row += cols[colname] + "|"
+		for i := range cols {
+			if strings.Contains(cols[i].colname, mastercol) {
+				row += cols[i].value + "|"
 				found = true
 				break
 			}
 		}
 		if !found {
-			row += " |"
+			row += "|"
 		}
 	}
 	row = strings.TrimSuffix(row, "|")
+
 	return row
 }
 
-func convertToMap(cols map[string]string, rowstring []string) map[string]string {
+func convertToOrderedMap(cols []orderedMap, rowstring []string) []orderedMap {
 	endindex := len(rowstring)
 	i := 0
 	for key := range cols {
 		if i < endindex {
-			cols[key] = rowstring[i]
+			cols[key].value = rowstring[i]
 			i++
 		} else {
 			break
@@ -156,9 +162,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	colsmap := make(map[string]string)
-	for _, colname := range queriedcols {
-		colsmap[colname] = ""
+	colsOMap := make([]orderedMap, len(queriedcols))
+	for i, colname := range queriedcols {
+		colsOMap[i].colname = colname
+		colsOMap[i].value = ""
 	}
 
 	vals := make([]interface{}, len(queriedcols))
@@ -177,7 +184,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		}
 		numberofRows++
 		rowstring := convertToString(vals)
-		cols := convertToMap(colsmap, rowstring)
+		cols := convertToOrderedMap(colsOMap, rowstring)
 		row := convertToText(maincolumns, cols)
 		inserted += fileWrite(file, row)
 	}

@@ -51,23 +51,32 @@ func TestConvertToString(t *testing.T) {
 func TestConvertToText(t *testing.T) {
 
 	maincol := []string{"A", "B", "C", "D", "E", "G"}
-	cols := map[string]string{"A": "a", "B": "b", "C": " ", "D_wdad": "d"}
+	cols := make([]orderedMap, 4)
+	cols[0] = orderedMap{"A", "a"}
+	cols[1] = orderedMap{"B", "b"}
+	cols[2] = orderedMap{"C", " "}
+	cols[3] = orderedMap{"D_wdad", "d"}
 	actualrow := convertToText(maincol, cols)
-	expectedrow := "\na|b| |d| | "
+	expectedrow := "\na|b| |d||"
 
 	if actualrow != expectedrow {
 		t.Errorf("TestConvertToText failed because the converted string is %s instead of %s", actualrow, expectedrow)
 	}
 }
 
-func TestConvertToMap(t *testing.T) {
+func TestConvertToOrderedMap(t *testing.T) {
 	//can not test if the values matched to the correct map key because maps are random.
-	actualcols := map[string]string{"A": "", "B": "", "C": "", "D": "e"}
+	actualcols := make([]orderedMap, 4)
+	actualcols[0] = orderedMap{"A", ""}
+	actualcols[1] = orderedMap{"B", ""}
+	actualcols[2] = orderedMap{"C", ""}
+	actualcols[3] = orderedMap{"D", "e"}
+
 	rowstring := []string{"a", "b", "c", "d"}
-	rowwithcols := convertToMap(actualcols, rowstring)
-	for col := range rowwithcols {
-		if actualcols[col] == "" {
-			t.Errorf("actualcols[%s]='%s' instead of ''", col, actualcols[col])
+	rowwithcols := convertToOrderedMap(actualcols, rowstring)
+	for i := range rowwithcols {
+		if actualcols[i].value == "" {
+			t.Errorf("actualcols[%s]='%s' instead of ''", actualcols[i].colname, actualcols[i].value)
 		}
 	}
 }
@@ -159,10 +168,10 @@ func TestSelectAccess(t *testing.T) {
 			t.Fail()
 		}
 	}
-	expectedOutput := "\nTest| |Jim|Lim|1| |Main St|Toronto|BC|M7K A6D|123456798| |6478032654|@gmail.com\nTest2| |Jim2|Lim2|1| |Main St2|Toronto2|BC|M7K A6D| |123456798|6478032654|@gmail.com\nTestRow|135435| | |1| |Test st| |m27d9dq| | | | |\nTestRow|111111| | |1| |Test st| |m27d9dq| | | | |"
+	expectedOutput := "\nTest|1234567|Jim|Lim|1||Main St|Toronto|BC|M7K A6D|123456798||6478032654|@gmail.com|\nTest2|1234567|Jim2|Lim2|1||Main St2|Toronto2|BC|M7K A6D||123456798|6478032654|@gmail.com|\nTestRow|135435|||1||Test St|||m27d9dq|||||\nTestRow|111111|||1||Test St|||m27d9dq|||||"
 	actualOutput := readFile(path)
 	if expectedOutput != actualOutput {
-		t.Errorf("Read %s but Wrote %s", actualOutput, expectedOutput)
+		t.Errorf("Read %s but should be %s", actualOutput, expectedOutput)
 	}
 	file.Close()
 	err := os.Remove(path)
