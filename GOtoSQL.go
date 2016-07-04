@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -35,7 +34,7 @@ func errorWrite(issue string) {
 		fmt.Println("Unable to Open Error File")
 		return
 	}
-	fileWrite(file, issue)
+	fileWrite(file, "\n"+issue)
 	file.Close()
 }
 
@@ -201,11 +200,12 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 
 func fileWrite(file *os.File, row string) int {
 	//Writes the queried row into a text file
-	_, err := io.WriteString(file, row)
+	_, err := file.WriteString(row)
 	if err != nil {
 		fmt.Println("Could Not Write String")
 		return 0
 	}
+	file.Sync()
 	return 1
 }
 
@@ -280,7 +280,7 @@ func connectToDB(dir string, dbname string) *sql.DB {
 
 func connectToTxt(filedir string) (*os.File, bool) {
 
-	file, err := os.OpenFile(filedir, os.O_APPEND|os.O_RDWR, 0666)
+	file, err := os.OpenFile(filedir, os.O_APPEND|os.O_RDWR|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Printf("Unable to Open Text File: %s", filedir)
 		fmt.Print(err)

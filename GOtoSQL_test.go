@@ -183,5 +183,4 @@ func TestSelectAccess(t *testing.T) {
 	//identifies the column names
 	//scans the rows
 	//writes the result in to a textfile * create a text file
-
 }
