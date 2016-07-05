@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/access"
 	_ "github.com/alexbrainman/odbc"
 )
 
@@ -20,24 +21,9 @@ var ( //Global Variables to Track files accessed
 	rowsinserted int
 )
 
-type orderedMap struct {
-	colname string
-	value   string
-}
-
-//Sort the Columns
-//fill the empty or not present columns with empty cells
-//Error handling ie writing to a new .txt
-func errorWrite(issue string) {
-	file, conn := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ErrorLog.txt")
-	if !conn {
-		fmt.Println("Unable to Open Error File")
-		return
-	}
-	fileWrite(file, "\n"+issue)
-	file.Close()
-}
-
+//checkFollowup queries the specified table to check if it is a Followup Table(i.e contains FU_D,DIED,DTH_D)
+//based on the columns present, it also returns a list of column names matched to a masterlist
+//If no column names are present then it returns an empty query
 func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	FU := false
 	//Attempts to Run the Query
@@ -45,13 +31,13 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	if err != nil {
 		issue := "Cant Run SELECT * FROM [" + tablename + "]"
 		fmt.Println(err)
-		errorWrite(issue)
+		access.ErrorWrite(issue)
 	}
 	//Returns the Columns from the QUERY
 	column, err := rows.Columns()
 	if err != nil {
 		fmt.Println(err)
-		errorWrite(err.Error())
+		access.ErrorWrite(err.Error())
 	}
 
 	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB"}
@@ -76,56 +62,7 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	return FU, maincolumns, query
 }
 
-func convertToString(vals []interface{}) []string {
-	row := make([]string, len(vals))
-	for i, val := range vals {
-		value := val.(*sql.NullString)
-		row[i] = value.String
-	}
-	return row
-}
-
-func convertToText(maincolumns []string, cols []orderedMap) string {
-	//takes in the queried row divided in an array of strings based off of the column
-	//maincolumns contains the master columns and a flag for which ever one was used
-	//the function arranges based on
-	var row string
-	found := false
-	row = "\n"
-	for _, mastercol := range maincolumns {
-		found = false
-		for i := range cols {
-			if strings.Contains(cols[i].colname, mastercol) {
-				row += cols[i].value + "|"
-				found = true
-				break
-			}
-		}
-		if !found {
-			row += "|"
-		}
-	}
-	row = strings.TrimSuffix(row, "|")
-
-	return row
-}
-
-func convertToOrderedMap(cols []orderedMap, rowstring []string) []orderedMap {
-	endindex := len(rowstring)
-	i := 0
-	for key := range cols {
-		if i < endindex {
-			cols[key].value = rowstring[i]
-			i++
-		} else {
-			break
-		}
-
-	}
-
-	return cols
-}
-
+//selectAccess
 func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
 	//returns # inserted
@@ -137,11 +74,11 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else if query == "" {
 		issue := tablename + " does not contain any columns related to PHI\n"
-		errorWrite(issue)
+		access.ErrorWrite(issue)
 		return 0, 0
 	} else {
 		issue := tablename + " is not a Follow Up Table\n"
-		errorWrite(issue)
+		access.ErrorWrite(issue)
 		return 0, 0
 	}
 	numberofRows := 0
@@ -152,7 +89,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		issue := "Select query failed to execute " + tablename + "\n"
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
-		errorWrite(issue)
+		access.ErrorWrite(issue)
 		return 0, 0
 	}
 	defer rows.Close()
@@ -161,10 +98,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	colsOMap := make([]orderedMap, len(queriedcols))
+	colsOMap := make([]access.OrderedMap, len(queriedcols))
 	for i, colname := range queriedcols {
-		colsOMap[i].colname = colname
-		colsOMap[i].value = ""
+		colsOMap[i].Colname = colname
+		colsOMap[i].Value = ""
 	}
 
 	vals := make([]interface{}, len(queriedcols))
@@ -178,39 +115,28 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			issue := "Read row failed. Not enough parameters in: " + tablename
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
-			errorWrite(issue)
+			access.ErrorWrite(issue)
 			return inserted, numberofRows
 		}
 		numberofRows++
-		rowstring := convertToString(vals)
-		cols := convertToOrderedMap(colsOMap, rowstring)
-		row := convertToText(maincolumns, cols)
-		inserted += fileWrite(file, row)
+		rowstring := access.ConvertToString(vals)
+		cols := access.ConvertToOrderedMap(colsOMap, rowstring)
+		row := access.ConvertToText(maincolumns, cols)
+		inserted += access.FileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
 	if err != nil {
 		fmt.Println("rows.Err failure")
-		errorWrite(err.Error())
+		access.ErrorWrite(err.Error())
 		return inserted, numberofRows
 	}
 	// //flag errors from querying Oringinating DB
 	return inserted, numberofRows
 }
 
-func fileWrite(file *os.File, row string) int {
-	//Writes the queried row into a text file
-	_, err := file.WriteString(row)
-	if err != nil {
-		fmt.Println("Could Not Write String")
-		return 0
-	}
-	file.Sync()
-	return 1
-}
-
+//findDB goes through the current directory and identifies folders, .accdb, and .mdb
 func findDB(dir string) ([]string, []string, []string) {
-	//Go through the current directory and identifies folders, .accdb, and .mdb
 	var mdbnames []string
 	var accdbnames []string
 	var foldernames []string
@@ -220,29 +146,31 @@ func findDB(dir string) ([]string, []string, []string) {
 		fmt.Println(err)
 	}
 	for _, f := range files {
-		if strings.Contains(f.Name(), ".accdb") {
-			accdbnames = append(accdbnames, f.Name())
-		} else if strings.Contains(f.Name(), ".mdb") {
-			mdbnames = append(mdbnames, f.Name())
-		} else if !(strings.Contains(f.Name(), ".")) {
+		if f.IsDir() {
 			foldernames = append(foldernames, f.Name())
+		} else {
+			if strings.Contains(f.Name(), ".accdb") {
+				accdbnames = append(accdbnames, f.Name())
+			} else if strings.Contains(f.Name(), ".mdb") {
+				mdbnames = append(mdbnames, f.Name())
+			}
 		}
 	}
 	return mdbnames, accdbnames, foldernames
 }
 
-func findtable(conn *sql.DB) []string {
-	//Iterates through all the tables in the database.
-	//Currently only works with .mdb. .accdb does not have permission.
+//findTable iterates through all the tables in the database.
+//Currently only works with .mdb. .accdb does not have permission.
+func findTable(conn *sql.DB) []string {
 	var tablenames []string
 
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
+	defer rows.Close()
 	if err != nil {
 		fmt.Println("Failed to Select Tablenames")
 		fmt.Println(err)
 		return tablenames
 	}
-	defer rows.Close()
 
 	for rows.Next() {
 		var table string
@@ -255,17 +183,7 @@ func findtable(conn *sql.DB) []string {
 	return tablenames
 }
 
-func matchTable(tablenames []string, match string) []string {
-	//finds tables with names that matches the match string and then returns a slice of the tables
-	var phitablenames []string
-	for _, tablename := range tablenames {
-		if strings.Contains(tablename, match) {
-			phitablenames = append(phitablenames, tablename)
-		}
-	}
-	return phitablenames
-}
-
+//connectToDB Connects to a specified database in a specified directory
 func connectToDB(dir string, dbname string) *sql.DB {
 
 	dbq := dir + "/" + dbname
@@ -278,21 +196,9 @@ func connectToDB(dir string, dbname string) *sql.DB {
 	return conn
 }
 
-func connectToTxt(filedir string) (*os.File, bool) {
-
-	file, err := os.OpenFile(filedir, os.O_APPEND|os.O_RDWR|os.O_WRONLY, 0666)
-	if err != nil {
-		fmt.Printf("Unable to Open Text File: %s", filedir)
-		fmt.Print(err)
-		errorWrite(err.Error())
-		return file, false
-	}
-	return file, true
-}
-
-func connectandexecute(dir string, dbnames []string) string {
-	//Connects to Database and File.
-	//Calls matchTable Function and then iterates through the tables using SelectAccess
+//connectExecute connects to every database in a specified directory and checks if its is a FU table
+//if so, it reads the columns; sorts them; and writes them on to a textfile
+func connectExecute(dir string, dbnames []string) string {
 	var dbaccessed int
 	for _, dbname := range dbnames {
 		conn := connectToDB(dir, dbname)
@@ -303,18 +209,11 @@ func connectandexecute(dir string, dbnames []string) string {
 		}
 		//Originating Database connection established
 
-		tablenames := findtable(conn)
+		tablenames := findTable(conn)
 		tablelength := len(tablenames)
 		fmt.Printf("%d Tables in %s\n", tablelength, dbname)
 
-		if len(tablenames) != 0 {
-			tablenames = matchTable(tablenames, "FU")
-			fmt.Printf("%d/%d Tables Match the Criteria\n", len(tablenames), tablelength)
-		} else {
-			return "No Table Names"
-		}
-
-		file, connection := connectToTxt("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt")
+		file, connection := access.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt")
 		if !connection {
 			continue
 		}
@@ -336,12 +235,13 @@ func connectandexecute(dir string, dbnames []string) string {
 	return result
 }
 
+//dbPresent checks if there are mdbnames or accdbnames and then executes the code to connect to the DB
+//currently needed because of no permission on .accdb files.
 func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
-	//Checks if there are mdbnames or accdbnames and then executes the code to connect to the DB
 	var result string
 
 	if len(mdbnames) != 0 {
-		results := connectandexecute(dir, mdbnames)
+		results := connectExecute(dir, mdbnames)
 		fmt.Println(results + "\n*************************\n")
 		result += ".mdb Files Executed"
 	} else {
@@ -349,7 +249,7 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 	}
 
 	if len(accdbnames) != 0 {
-		fmt.Println(connectandexecute(dir, accdbnames) + "\n*************************\n")
+		fmt.Println(connectExecute(dir, accdbnames) + "\n*************************\n")
 		result += " .accdb Files Executed"
 	} else {
 		result += " .accdb Files Empty"
@@ -357,7 +257,8 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 	return result
 }
 
-func gothroughfolder(foldernames []string, dir string) bool {
+// walkDir goes through the current dir executes on all db files and then moves on to the next dir recursively
+func walkDir(foldernames []string, dir string) {
 	if len(foldernames) != 0 {
 		for _, foldername := range foldernames {
 			dir = dir + foldername
@@ -368,14 +269,13 @@ func gothroughfolder(foldernames []string, dir string) bool {
 			result := dbPresent(dir, mdbnames, accdbnames)
 			fmt.Printf("\n%s \n", result)
 			dir += "/"
-			gothroughfolder(newfoldernames, dir)
+			walkDir(newfoldernames, dir)
 		}
 	}
-	return true
 }
 
+//printDirInfo prints information about the dir
 func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, dir string) {
-	//prints out the info for the current folder
 	fmt.Printf("Number of .mdb files in %s: %d \nNumber of .accdb files in %s: %d \nNumber of Folders in %s: %d\n\n", dir, len(mdbnames), dir, len(accdbnames), dir, len(foldernames))
 }
 
@@ -385,10 +285,8 @@ func main() {
 
 	dir := "./"
 	foldernames := []string{""}
-	status := gothroughfolder(foldernames, dir)
+	walkDir(foldernames, dir)
 
-	if status == true {
-		elapsed := time.Since(start)
-		fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d\nTime Taken: %s", numfolders, numfiles, numtables, rowsinserted, elapsed)
-	}
+	elapsed := time.Since(start)
+	fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d\nTime Taken: %s", numfolders, numfiles, numtables, rowsinserted, elapsed)
 }

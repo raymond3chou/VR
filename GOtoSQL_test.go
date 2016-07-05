@@ -8,11 +8,11 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/access"
+	_ "github.com/alexbrainman/odbc"
 )
 
-//create mock files to test database and files.
-//print errors
-//check if the function works and if it doesnt
 func TestCheckFollowup(t *testing.T) {
 	actualqueryforT1 := " PTID, CHART, SEX, STREET, POSTCODE"
 	actualqueryforCopy := " CHART, SEX, STREET, PTID, POSTCODE"
@@ -39,7 +39,7 @@ func TestConvertToString(t *testing.T) {
 		vals[i] = new(sql.NullString)
 	}
 	stringval := make([]string, 10)
-	row := convertToString(vals)
+	row := access.ConvertToString(vals)
 	actualtype := reflect.TypeOf(row)
 	expectedtype := reflect.TypeOf(stringval)
 
@@ -51,12 +51,12 @@ func TestConvertToString(t *testing.T) {
 func TestConvertToText(t *testing.T) {
 
 	maincol := []string{"A", "B", "C", "D", "E", "G"}
-	cols := make([]orderedMap, 4)
-	cols[0] = orderedMap{"A", "a"}
-	cols[1] = orderedMap{"B", "b"}
-	cols[2] = orderedMap{"C", " "}
-	cols[3] = orderedMap{"D_wdad", "d"}
-	actualrow := convertToText(maincol, cols)
+	cols := make([]access.OrderedMap, 4)
+	cols[0] = access.OrderedMap{Colname: "A", Value: "a"}
+	cols[1] = access.OrderedMap{Colname: "B", Value: "b"}
+	cols[2] = access.OrderedMap{Colname: "C", Value: " "}
+	cols[3] = access.OrderedMap{Colname: "D_wdad", Value: "d"}
+	actualrow := access.ConvertToText(maincol, cols)
 	expectedrow := "\na|b| |d||"
 
 	if actualrow != expectedrow {
@@ -66,17 +66,17 @@ func TestConvertToText(t *testing.T) {
 
 func TestConvertToOrderedMap(t *testing.T) {
 	//can not test if the values matched to the correct map key because maps are random.
-	actualcols := make([]orderedMap, 4)
-	actualcols[0] = orderedMap{"A", ""}
-	actualcols[1] = orderedMap{"B", ""}
-	actualcols[2] = orderedMap{"C", ""}
-	actualcols[3] = orderedMap{"D", "e"}
+	actualcols := make([]access.OrderedMap, 4)
+	actualcols[0] = access.OrderedMap{Colname: "A", Value: ""}
+	actualcols[1] = access.OrderedMap{Colname: "B", Value: ""}
+	actualcols[2] = access.OrderedMap{Colname: "C", Value: ""}
+	actualcols[3] = access.OrderedMap{Colname: "D", Value: "e"}
 
 	rowstring := []string{"a", "b", "c", "d"}
-	rowwithcols := convertToOrderedMap(actualcols, rowstring)
+	rowwithcols := access.ConvertToOrderedMap(actualcols, rowstring)
 	for i := range rowwithcols {
-		if actualcols[i].value == "" {
-			t.Errorf("actualcols[%s]='%s' instead of ''", actualcols[i].colname, actualcols[i].value)
+		if actualcols[i].Value == "" {
+			t.Errorf("actualcols[%s]='%s' instead of ''", actualcols[i].Colname, actualcols[i].Value)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func createFile(path string) *os.File {
 	}
 	f.Close()
 
-	file, _ := connectToTxt(path)
+	file, _ := access.ConnectToTxt(path)
 	return file
 }
 
@@ -105,7 +105,7 @@ func TestFileWrite(t *testing.T) {
 	file := createFile(path)
 
 	row := "Hello World 1234..."
-	fileWrite(file, row)
+	access.FileWrite(file, row)
 	file.Close()
 	actualrow := readFile(path)
 	if row != actualrow {
@@ -114,24 +114,6 @@ func TestFileWrite(t *testing.T) {
 	err := os.Remove(path)
 	if err != nil {
 		fmt.Println(err)
-	}
-}
-
-func TestMatchTable(t *testing.T) {
-	tablenames := []string{"contact info", "contactInfo", "contactin19fo", "infoinfo", "inf"}
-	match := "info"
-	actualphitablenames := matchTable(tablenames, match)
-	expectedPHItablenames := []string{"contact info", "infoinfo"}
-	nummatched := 0
-	for _, expected := range expectedPHItablenames {
-		for _, actual := range actualphitablenames {
-			if expected == actual {
-				nummatched++
-			}
-		}
-	}
-	if nummatched != len(expectedPHItablenames) {
-		t.Errorf("TestMatchTable failed because %d matched instead of %d", nummatched, len(expectedPHItablenames))
 	}
 }
 
