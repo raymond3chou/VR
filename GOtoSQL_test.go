@@ -17,7 +17,7 @@ func TestCheckFollowup(t *testing.T) {
 	actualqueryforT1 := " PTID, CHART, SEX, STREET, POSTCODE"
 	actualqueryforCopy := " CHART, SEX, STREET, PTID, POSTCODE"
 	tableArray := []string{"ContactInfo3", "Table1", "Copy Of Table1"}
-	conn := connectToDB("./", "TestDb.accdb")
+	conn := connectToDB("./Example", "TestDb.accdb")
 	defer conn.Close()
 	for _, tablename := range tableArray {
 		FU, _, query := checkFollowup(conn, tablename)
@@ -122,7 +122,7 @@ func TestSelectAccess(t *testing.T) {
 	path := "C:\\Users\\raymond chou\\Desktop\\TestWrite.txt"
 	file := createFile(path)
 	//connect to database
-	conn := connectToDB("./", "TestDb.accdb")
+	conn := connectToDB("./Example", "TestDb.accdb")
 	defer conn.Close()
 	//array of tablenames
 	tableArray := []string{"AV Sparing 2013 FU", "ContactInfo3", "Copy Of Table1", "Table1", "Table2"}
