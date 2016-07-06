@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -14,7 +13,8 @@ import (
 	_ "github.com/alexbrainman/odbc"
 )
 
-var ( //Global Variables to Track files accessed
+//Global Variables to Track files accessed
+var (
 	numtables    int
 	numfiles     int
 	numfolders   int
@@ -25,41 +25,43 @@ var ( //Global Variables to Track files accessed
 //based on the columns present, it also returns a list of column names matched to a masterlist
 //If no column names are present then it returns an empty query
 func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
-	FU := false
+	followup := false
+	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB", "CARDIO1", "CARDIO2", "GP1", "GP2"}
+	var query string
 	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
 	if err != nil {
 		issue := "Cant Run SELECT * FROM [" + tablename + "]"
 		fmt.Println(err)
-		access.ErrorWrite(issue)
-	}
-	//Returns the Columns from the QUERY
-	column, err := rows.Columns()
-	if err != nil {
-		fmt.Println(err)
-		access.ErrorWrite(err.Error())
-	}
+		access.Errorlog.Panic(issue)
+	} else {
+		//Returns the Columns from the QUERY
+		columnArray, err := rows.Columns()
+		if err != nil {
+			fmt.Println(err)
+			access.Errorlog.Panic(err.Error())
+		} else {
 
-	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB"}
-	var query string
-	for _, columnname := range column {
-		for _, maincolname := range maincolumns {
-			if columnname == "FU_D" {
-				FU = true
+			for _, columnname := range columnArray {
+				for _, maincolname := range maincolumns {
+					if columnname == "FU_D" {
+						followup = true
+					}
+					if columnname == "DIED" {
+						followup = true
+					}
+					if columnname == "DTH_D" {
+						followup = true
+					}
+					if strings.Contains(columnname, maincolname) {
+						query += " " + columnname + ","
+					}
+				}
 			}
-			if columnname == "DIED" {
-				FU = true
-			}
-			if columnname == "DTH_D" {
-				FU = true
-			}
-			if strings.Contains(columnname, maincolname) {
-				query += " " + columnname + ","
-			}
+			query = strings.TrimSuffix(query, ",")
 		}
 	}
-	query = strings.TrimSuffix(query, ",")
-	return FU, maincolumns, query
+	return followup, maincolumns, query
 }
 
 //selectAccess
@@ -69,16 +71,16 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	var selectquery string
 	var query string
 
-	FU, maincolumns, query := checkFollowup(conn, tablename)
-	if FU && query != "" {
+	followup, maincolumns, query := checkFollowup(conn, tablename)
+	if followup && query != "" {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else if query == "" {
 		issue := tablename + " does not contain any columns related to PHI\n"
-		access.ErrorWrite(issue)
+		access.Errorlog.Print(issue)
 		return 0, 0
 	} else {
 		issue := tablename + " is not a Follow Up Table\n"
-		access.ErrorWrite(issue)
+		access.Errorlog.Print(issue)
 		return 0, 0
 	}
 	numberofRows := 0
@@ -89,7 +91,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		issue := "Select query failed to execute " + tablename + "\n"
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
-		access.ErrorWrite(issue)
+		access.Errorlog.Panic(issue)
 		return 0, 0
 	}
 	defer rows.Close()
@@ -115,7 +117,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			issue := "Read row failed. Not enough parameters in: " + tablename
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
-			access.ErrorWrite(issue)
+			access.Errorlog.Panic(issue)
 			return inserted, numberofRows
 		}
 		numberofRows++
@@ -128,7 +130,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	err = rows.Err()
 	if err != nil {
 		fmt.Println("rows.Err failure")
-		access.ErrorWrite(err.Error())
+		access.Errorlog.Panic(err.Error())
 		return inserted, numberofRows
 	}
 	// //flag errors from querying Oringinating DB
@@ -143,7 +145,7 @@ func findDB(dir string) ([]string, []string, []string) {
 
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		fmt.Println(err)
+		access.Errorlog.Println(err)
 	}
 	for _, f := range files {
 		if f.IsDir() {
@@ -167,8 +169,8 @@ func findTable(conn *sql.DB) []string {
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
 	defer rows.Close()
 	if err != nil {
-		fmt.Println("Failed to Select Tablenames")
-		fmt.Println(err)
+		access.Errorlog.Println("Failed to Select Tablenames")
+		access.Errorlog.Println(err)
 		return tablenames
 	}
 
@@ -176,7 +178,7 @@ func findTable(conn *sql.DB) []string {
 		var table string
 		err = rows.Scan(&table)
 		if err != nil {
-			fmt.Println("Failed to pass tablenames")
+			access.Errorlog.Println("Failed to pass tablenames")
 		}
 		tablenames = append(tablenames, table)
 	}
@@ -190,7 +192,7 @@ func connectToDB(dir string, dbname string) *sql.DB {
 	fmt.Println("Connecting to " + dbq)
 	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 	if err != nil {
-		log.Fatal("Connection to " + dbq + " Failed")
+		access.Errorlog.Println("Connection to " + dbq + " Failed")
 	}
 	fmt.Println("Connected to " + dbq)
 	return conn
@@ -201,15 +203,15 @@ func connectToDB(dir string, dbname string) *sql.DB {
 func connectExecute(dir string, dbnames []string) string {
 	var dbaccessed int
 	for _, dbname := range dbnames {
-		conn := connectToDB(dir, dbname)
-		if conn != nil {
+		isConnected := connectToDB(dir, dbname)
+		if isConnected != nil {
 			dbaccessed++
 		} else {
 			continue
 		}
-		//Originating Database connection established
+		//Originating Database isConnectedection established
 
-		tablenames := findTable(conn)
+		tablenames := findTable(isConnected)
 		tablelength := len(tablenames)
 		fmt.Printf("%d Tables in %s\n", tablelength, dbname)
 
@@ -220,12 +222,12 @@ func connectExecute(dir string, dbnames []string) string {
 		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
 		var tableused int
 		for _, tablename := range tablenames {
-			inserted, numberofRows := selectAccess(conn, file, tablename)
+			inserted, numberofRows := selectAccess(isConnected, file, tablename)
 			fmt.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, numberofRows)
 			tableused++
 			rowsinserted += inserted
 		}
-		conn.Close()
+		isConnected.Close()
 		file.Close()
 		fmt.Printf("%s Closed and %d Table(s) Extracted\n ---------------------------\n", dbname, tableused)
 		numtables += tableused
@@ -280,6 +282,7 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
+	access.CreateErrorLog(false)
 	start := time.Now()
 	fmt.Println("\n\n------START OF PROGRAM------")
 

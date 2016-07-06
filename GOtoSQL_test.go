@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -81,33 +79,16 @@ func TestConvertToOrderedMap(t *testing.T) {
 	}
 }
 
-func readFile(filename string) string {
-	fileoutput, err := ioutil.ReadFile(filename)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return string(fileoutput)
-}
-
-func createFile(path string) *os.File {
-	var f, err = os.Create(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	f.Close()
-
-	file, _ := access.ConnectToTxt(path)
-	return file
-}
-
 func TestFileWrite(t *testing.T) {
+	access.CreateErrorLog(true)
 	path := "C:\\Users\\raymond chou\\Desktop\\TestFile.txt"
-	file := createFile(path)
+	access.CreateFile(path)
+	file, _ := access.ConnectToTxt(path)
 
 	row := "Hello World 1234..."
 	access.FileWrite(file, row)
 	file.Close()
-	actualrow := readFile(path)
+	actualrow := access.ReadFile(path)
 	if row != actualrow {
 		t.Errorf("Read %s but Wrote %s", actualrow, row)
 	}
@@ -118,9 +99,13 @@ func TestFileWrite(t *testing.T) {
 }
 
 func TestSelectAccess(t *testing.T) {
+	access.CreateErrorLog(true)
+
 	//create file
 	path := "C:\\Users\\raymond chou\\Desktop\\TestWrite.txt"
-	file := createFile(path)
+	access.CreateFile(path)
+	file, _ := access.ConnectToTxt(path)
+
 	//connect to database
 	conn := connectToDB("./Example", "TestDb.accdb")
 	defer conn.Close()
@@ -150,8 +135,8 @@ func TestSelectAccess(t *testing.T) {
 			t.Fail()
 		}
 	}
-	expectedOutput := "\nTest|1234567|Jim|Lim|1||Main St|Toronto|BC|M7K A6D|123456798||6478032654|@gmail.com|\nTest2|1234567|Jim2|Lim2|1||Main St2|Toronto2|BC|M7K A6D||123456798|6478032654|@gmail.com|\nTestRow|135435|||1||Test St|||m27d9dq|||||\nTestRow|111111|||1||Test St|||m27d9dq|||||"
-	actualOutput := readFile(path)
+	expectedOutput := "\nTest|1234567|Jim|Lim|1||Main St|Toronto|BC|M7K A6D|123456798||6478032654|@gmail.com||C1|C2|G1|G2\nTest2|1234567|Jim2|Lim2|1||Main St2|Toronto2|BC|M7K A6D||123456798|6478032654|@gmail.com||C1||G1|\nTestRow|135435|||1||Test St|||m27d9dq|||||||||\nTestRow|111111|||1||Test St|||m27d9dq|||||||||"
+	actualOutput := access.ReadFile(path)
 	if expectedOutput != actualOutput {
 		t.Errorf("Read %s but should be %s", actualOutput, expectedOutput)
 	}
@@ -160,9 +145,4 @@ func TestSelectAccess(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	//checks if it is a followup
-	//queries the table
-	//identifies the column names
-	//scans the rows
-	//writes the result in to a textfile * create a text file
 }
