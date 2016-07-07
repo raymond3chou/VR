@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -34,13 +34,13 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	if err != nil {
 		issue := "Cant Run SELECT * FROM [" + tablename + "]"
 		fmt.Println(err)
-		access.Errorlog.Panic(issue)
+		log.Panic(issue)
 	} else {
 		//Returns the Columns from the QUERY
 		columnArray, err := rows.Columns()
 		if err != nil {
 			fmt.Println(err)
-			access.Errorlog.Panic(err.Error())
+			log.Panic(err.Error())
 		} else {
 
 			for _, columnname := range columnArray {
@@ -77,11 +77,11 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		selectquery = "SELECT" + query + " FROM [" + tablename + "]"
 	} else if query == "" {
 		issue := tablename + " does not contain any columns related to PHI\n"
-		access.Errorlog.Print(issue)
+		log.Print(issue)
 		return 0, 0
 	} else {
 		issue := tablename + " is not a Follow Up Table\n"
-		access.Errorlog.Print(issue)
+		log.Print(issue)
 		return 0, 0
 	}
 	numberofRows := 0
@@ -92,7 +92,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		issue := "Select query failed to execute " + tablename + "\n"
 		fmt.Println("Select query failed to execute " + tablename)
 		fmt.Println(err)
-		access.Errorlog.Panic(issue)
+		log.Panic(issue)
 		return 0, 0
 	}
 	defer rows.Close()
@@ -118,7 +118,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 			issue := "Read row failed. Not enough parameters in: " + tablename
 			fmt.Println("Read row failed. Not enough parameters?")
 			fmt.Println(err)
-			access.Errorlog.Panic(issue)
+			log.Panic(issue)
 			return inserted, numberofRows
 		}
 		numberofRows++
@@ -131,7 +131,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	err = rows.Err()
 	if err != nil {
 		fmt.Println("rows.Err failure")
-		access.Errorlog.Panic(err.Error())
+		log.Panic(err.Error())
 		return inserted, numberofRows
 	}
 	// //flag errors from querying Oringinating DB
@@ -146,7 +146,7 @@ func findDB(dir string) ([]string, []string, []string) {
 
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		access.Errorlog.Println(err)
+		log.Println(err)
 	}
 	for _, f := range files {
 		if f.IsDir() {
@@ -168,22 +168,22 @@ func findTable(conn *sql.DB) []string {
 	var tablenames []string
 
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
-	defer rows.Close()
 	if err != nil {
-		access.Errorlog.Println("Failed to Select Tablenames")
-		access.Errorlog.Println(err)
-		return tablenames
+		fmt.Println(err)
 	}
-
-	for rows.Next() {
-		var table string
-		err = rows.Scan(&table)
-		if err != nil {
-			access.Errorlog.Println("Failed to pass tablenames")
+	defer rows.Close()
+	if err == nil {
+		for rows.Next() {
+			var table string
+			err = rows.Scan(&table)
+			if err != nil {
+				log.Println("Failed to pass tablenames")
+			}
+			tablenames = append(tablenames, table)
 		}
-		tablenames = append(tablenames, table)
 	}
 	return tablenames
+
 }
 
 //connectToDB Connects to a specified database in a specified directory
@@ -193,7 +193,7 @@ func connectToDB(dir string, dbname string) *sql.DB {
 	fmt.Println("Connecting to " + dbq)
 	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 	if err != nil {
-		access.Errorlog.Println("Connection to " + dbq + " Failed")
+		log.Println("Connection to " + dbq + " Failed")
 	}
 	fmt.Println("Connected to " + dbq)
 	return conn
@@ -283,15 +283,15 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
-	fmt.Println("\n\n------ENTER PATH FOR ERROR LOG------")
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter Path: ")
-	access.ErrPath, _ = reader.ReadString('\n')
-	access.CreateErrorLog(false)
+	errFile := access.CreateErrorLog(false)
+	log.SetOutput(errFile)
+	defer errFile.Close()
+
+	dir := access.ReadPath("Dir")
+
 	start := time.Now()
 	fmt.Println("\n\n------START OF PROGRAM------")
 
-	dir := "./"
 	foldernames := []string{""}
 	walkDir(foldernames, dir)
 

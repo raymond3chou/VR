@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -14,32 +15,24 @@ import (
 
 func TestCreateErrorLog(t *testing.T) {
 	expectedOutput := "Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log"
-	expectedOutputTest := "Success: C:\\Users\\raymond chou\\Desktop\\Test.log"
 
 	//Checks if Testlog is created using path and works
-	access.ErrPath = "C:\\Users\\raymond chou\\Desktop\\TestLog.log"
-	access.CreateErrorLog(false)
-	access.Errorlog.Println("Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	path := "C:\\Users\\raymond chou\\Desktop\\TestLog.log"
+	access.CreateFile(path)
+	errFile, err := access.ConnectToTxt(path)
+	if !err {
+		log.Fatal("Did not connect\n")
+	}
+	log.SetOutput(errFile)
+	log.Println("Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log")
 	output := access.ReadFile("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
 	if !strings.Contains(output, expectedOutput) {
 		t.Errorf("Output: %s does not Contain Expected Output: %s", output, expectedOutput)
 	}
-	access.ErrorFile.Close()
-	err := os.Remove("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	//Test if the test log works using default path
-	access.CreateErrorLog(true)
-	access.Errorlog.Println("Success: C:\\Users\\raymond chou\\Desktop\\Test.log")
-	output = access.ReadFile("C:\\Users\\raymond chou\\Desktop\\Test.log")
-	if !strings.Contains(output, expectedOutputTest) {
-		t.Errorf("Output: %s does not Contain Expected Output: %s", output, expectedOutputTest)
-	}
-	err = os.Remove("C:\\Users\\raymond chou\\Desktop\\Test.log")
-	if err != nil {
-		fmt.Println(err)
+	errFile.Close()
+	error := os.Remove("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	if error != nil {
+		t.Error(error)
 	}
 }
 
@@ -112,7 +105,10 @@ func TestConvertToOrderedMap(t *testing.T) {
 }
 
 func TestFileWrite(t *testing.T) {
-	access.CreateErrorLog(true)
+	fileErr := access.CreateErrorLog(true)
+	log.SetOutput(fileErr)
+	defer fileErr.Close()
+
 	path := "C:\\Users\\raymond chou\\Desktop\\TestFile.txt"
 	access.CreateFile(path)
 	file, _ := access.ConnectToTxt(path)
@@ -131,8 +127,9 @@ func TestFileWrite(t *testing.T) {
 }
 
 func TestSelectAccess(t *testing.T) {
-	access.CreateErrorLog(true)
-
+	fileErr := access.CreateErrorLog(true)
+	log.SetOutput(fileErr)
+	defer fileErr.Close()
 	//create file
 	path := "C:\\Users\\raymond chou\\Desktop\\TestWrite.txt"
 	access.CreateFile(path)
@@ -176,5 +173,16 @@ func TestSelectAccess(t *testing.T) {
 	err := os.Remove(path)
 	if err != nil {
 		fmt.Println(err)
+	}
+}
+
+func TestFindTable(t *testing.T) {
+	conn := connectToDB("C:/Users/raymond chou/Desktop/WorkingFiles/VR/Example", "New Microsoft Access Database.accdb")
+	tablenames := findTable(conn)
+	expectedtablenames := []string{"Table1", "Table5"}
+	for i, tablename := range tablenames {
+		if tablename != expectedtablenames[i] {
+			t.Errorf("Read %s but expected %s", tablename, expectedtablenames[i])
+		}
 	}
 }
