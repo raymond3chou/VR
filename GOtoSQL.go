@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -282,6 +283,10 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
+	fmt.Println("\n\n------ENTER PATH FOR ERROR LOG------")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter Path: ")
+	access.ErrPath, _ = reader.ReadString('\n')
 	access.CreateErrorLog(false)
 	start := time.Now()
 	fmt.Println("\n\n------START OF PROGRAM------")

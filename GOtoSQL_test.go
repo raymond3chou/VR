@@ -5,11 +5,43 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/access"
 	_ "github.com/alexbrainman/odbc"
 )
+
+func TestCreateErrorLog(t *testing.T) {
+	expectedOutput := "Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log"
+	expectedOutputTest := "Success: C:\\Users\\raymond chou\\Desktop\\Test.log"
+
+	//Checks if Testlog is created using path and works
+	access.ErrPath = "C:\\Users\\raymond chou\\Desktop\\TestLog.log"
+	access.CreateErrorLog(false)
+	access.Errorlog.Println("Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	output := access.ReadFile("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	if !strings.Contains(output, expectedOutput) {
+		t.Errorf("Output: %s does not Contain Expected Output: %s", output, expectedOutput)
+	}
+	access.ErrorFile.Close()
+	err := os.Remove("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//Test if the test log works using default path
+	access.CreateErrorLog(true)
+	access.Errorlog.Println("Success: C:\\Users\\raymond chou\\Desktop\\Test.log")
+	output = access.ReadFile("C:\\Users\\raymond chou\\Desktop\\Test.log")
+	if !strings.Contains(output, expectedOutputTest) {
+		t.Errorf("Output: %s does not Contain Expected Output: %s", output, expectedOutputTest)
+	}
+	err = os.Remove("C:\\Users\\raymond chou\\Desktop\\Test.log")
+	if err != nil {
+		fmt.Println(err)
+	}
+}
 
 func TestCheckFollowup(t *testing.T) {
 	actualqueryforT1 := " PTID, CHART, SEX, STREET, POSTCODE"
