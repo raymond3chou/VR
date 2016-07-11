@@ -55,7 +55,7 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 						followup = true
 					}
 					if strings.Contains(columnname, maincolname) {
-						query += " " + columnname + ","
+						query += " [" + columnname + "],"
 					}
 				}
 			}
@@ -149,14 +149,13 @@ func findDB(dir string) ([]string, []string, []string) {
 		log.Println(err)
 	}
 	for _, f := range files {
-		if f.IsDir() {
+		if strings.Contains(f.Name(), ".accdb") {
+			accdbnames = append(accdbnames, f.Name())
+		} else if strings.Contains(f.Name(), ".mdb") {
+			mdbnames = append(mdbnames, f.Name())
+		} else if !strings.Contains(f.Name(), ".") {
 			foldernames = append(foldernames, f.Name())
-		} else {
-			if strings.Contains(f.Name(), ".accdb") {
-				accdbnames = append(accdbnames, f.Name())
-			} else if strings.Contains(f.Name(), ".mdb") {
-				mdbnames = append(mdbnames, f.Name())
-			}
+
 		}
 	}
 	return mdbnames, accdbnames, foldernames
@@ -283,12 +282,10 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
-	errFile := access.CreateErrorLog(false)
+	errFile := access.CreateErrorLog(true)
 	log.SetOutput(errFile)
 	defer errFile.Close()
-
-	dir := access.ReadPath("Dir")
-
+	dir := "./"
 	start := time.Now()
 	fmt.Println("\n\n------START OF PROGRAM------")
 

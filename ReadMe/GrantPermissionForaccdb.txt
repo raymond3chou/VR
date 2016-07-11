@@ -1,1 +1,1 @@
-GRANT SELECT ON MSysObjects TO Admin
+CurrentProject.Connection.Execute "GRANT SELECT ON MSysObjects TO Admin;"

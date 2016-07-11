@@ -37,8 +37,8 @@ func TestCreateErrorLog(t *testing.T) {
 }
 
 func TestCheckFollowup(t *testing.T) {
-	actualqueryforT1 := " PTID, CHART, SEX, STREET, POSTCODE"
-	actualqueryforCopy := " CHART, SEX, STREET, PTID, POSTCODE"
+	actualqueryforT1 := " [PTID], [CHART], [SEX], [STREET], [POSTCODE]"
+	actualqueryforCopy := " [CHART], [SEX], [STREET], [PTID], [POSTCODE]"
 	tableArray := []string{"ContactInfo3", "Table1", "Copy Of Table1"}
 	conn := connectToDB("./Example", "TestDb.accdb")
 	defer conn.Close()
@@ -185,4 +185,8 @@ func TestFindTable(t *testing.T) {
 			t.Errorf("Read %s but expected %s", tablename, expectedtablenames[i])
 		}
 	}
+}
+
+func TestWalkDir(t *testing.T) {
+
 }
