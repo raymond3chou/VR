@@ -149,13 +149,14 @@ func findDB(dir string) ([]string, []string, []string) {
 		log.Println(err)
 	}
 	for _, f := range files {
-		if strings.Contains(f.Name(), ".accdb") {
-			accdbnames = append(accdbnames, f.Name())
-		} else if strings.Contains(f.Name(), ".mdb") {
-			mdbnames = append(mdbnames, f.Name())
-		} else if !strings.Contains(f.Name(), ".") {
+		if f.IsDir() {
 			foldernames = append(foldernames, f.Name())
-
+		} else {
+			if strings.Contains(f.Name(), ".accdb") {
+				accdbnames = append(accdbnames, f.Name())
+			} else if strings.Contains(f.Name(), ".mdb") {
+				mdbnames = append(mdbnames, f.Name())
+			}
 		}
 	}
 	return mdbnames, accdbnames, foldernames
@@ -261,19 +262,18 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 
 // walkDir goes through the current dir executes on all db files and then moves on to the next dir recursively
 func walkDir(foldernames []string, dir string) {
-	if len(foldernames) != 0 {
-		for _, foldername := range foldernames {
-			dir = dir + foldername
-			fmt.Printf("\nEntering Folder Directory: %s\n", dir)
-			numfolders++
-			mdbnames, accdbnames, newfoldernames := findDB(dir)
-			printDirInfo(mdbnames, accdbnames, foldernames, dir)
-			result := dbPresent(dir, mdbnames, accdbnames)
-			fmt.Printf("\n%s \n", result)
-			dir += "/"
-			walkDir(newfoldernames, dir)
-		}
+	for _, foldername := range foldernames {
+		newDir := dir + foldername + "/"
+		fmt.Printf("\nEntering Folder Directory: %s\n", newDir)
+		numfolders++
+		mdbnames, accdbnames, newfoldernames := findDB(newDir)
+		printDirInfo(mdbnames, accdbnames, foldernames, dir)
+		result := dbPresent(newDir, mdbnames, accdbnames)
+		fmt.Printf("\n%s \n", result)
+		fmt.Println(newDir)
+		walkDir(newfoldernames, newDir)
 	}
+
 }
 
 //printDirInfo prints information about the dir

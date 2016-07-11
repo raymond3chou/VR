@@ -188,5 +188,6 @@ func TestFindTable(t *testing.T) {
 }
 
 func TestWalkDir(t *testing.T) {
-
+	foldername := []string{""}
+	walkDir(foldername, "./")
 }
