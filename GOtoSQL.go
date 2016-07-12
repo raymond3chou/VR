@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,13 +32,13 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
 	if err != nil {
 		issue := "Cant Run SELECT * FROM [" + tablename + "]"
-		fmt.Println(err)
+		log.Println(err)
 		log.Panic(issue)
 	} else {
 		//Returns the Columns from the QUERY
 		columnArray, err := rows.Columns()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			log.Panic(err.Error())
 		} else {
 
@@ -62,6 +61,7 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 			query = strings.TrimSuffix(query, ",")
 		}
 	}
+	rows.Close()
 	return followup, maincolumns, query
 }
 
@@ -90,8 +90,8 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	rows, err := conn.Query(selectquery)
 	if err != nil {
 		issue := "Select query failed to execute " + tablename + "\n"
-		fmt.Println("Select query failed to execute " + tablename)
-		fmt.Println(err)
+		log.Println("Select query failed to execute " + tablename)
+		log.Println(err)
 		log.Panic(issue)
 		return 0, 0
 	}
@@ -99,8 +99,9 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//queried Oringinal DB for ***
 	queriedcols, err := rows.Columns()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
+
 	colsOMap := make([]access.OrderedMap, len(queriedcols))
 	for i, colname := range queriedcols {
 		colsOMap[i].Colname = colname
@@ -116,8 +117,8 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		err = rows.Scan(vals...)
 		if err != nil {
 			issue := "Read row failed. Not enough parameters in: " + tablename
-			fmt.Println("Read row failed. Not enough parameters?")
-			fmt.Println(err)
+			log.Println("Read row failed. Not enough parameters?")
+			log.Println(err)
 			log.Panic(issue)
 			return inserted, numberofRows
 		}
@@ -130,10 +131,12 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
 	if err != nil {
-		fmt.Println("rows.Err failure")
+		log.Println("rows.Err failure")
 		log.Panic(err.Error())
 		return inserted, numberofRows
 	}
+	rows.Close()
+
 	// //flag errors from querying Oringinating DB
 	return inserted, numberofRows
 }
@@ -169,7 +172,7 @@ func findTable(conn *sql.DB) []string {
 
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer rows.Close()
 	if err == nil {
@@ -190,12 +193,13 @@ func findTable(conn *sql.DB) []string {
 func connectToDB(dir string, dbname string) *sql.DB {
 
 	dbq := dir + "/" + dbname
-	fmt.Println("Connecting to " + dbq)
+	log.Println("Connecting to " + dbq)
 	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq="+dbq)
 	if err != nil {
 		log.Println("Connection to " + dbq + " Failed")
+	} else {
+		log.Println("Connected to " + dbq)
 	}
-	fmt.Println("Connected to " + dbq)
 	return conn
 }
 
@@ -207,16 +211,20 @@ func connectExecute(dir string, dbnames []string) string {
 		isConnected := connectToDB(dir, dbname)
 		if isConnected != nil {
 			dbaccessed++
+			defer isConnected.Close()
 		} else {
+			isConnected.Close()
 			continue
 		}
 		//Originating Database isConnectedection established
 
 		tablenames := findTable(isConnected)
 		tablelength := len(tablenames)
-		fmt.Printf("%d Tables in %s\n", tablelength, dbname)
+		log.Printf("%d Tables in %s\n", tablelength, dbname)
 
-		file, connection := access.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt")
+		path := "C:\\Users\\ext_hsc\\Desktop\\VR\\ContactInfo.txt"
+		// path := "C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt"
+		file, connection := access.ConnectToTxt(path)
 		if !connection {
 			continue
 		}
@@ -224,14 +232,14 @@ func connectExecute(dir string, dbnames []string) string {
 		var tableused int
 		for _, tablename := range tablenames {
 			inserted, numberofRows := selectAccess(isConnected, file, tablename)
-			fmt.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, numberofRows)
+			log.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, numberofRows)
 			tableused++
 			rowsinserted += inserted
 		}
-		isConnected.Close()
 		file.Close()
-		fmt.Printf("%s Closed and %d Table(s) Extracted\n ---------------------------\n", dbname, tableused)
+		log.Printf("%s Closed and %d Table(s) Extracted\n ---------------------------\n", dbname, tableused)
 		numtables += tableused
+
 	}
 	result := "File(s) Accessed and Closed: " + strconv.Itoa(dbaccessed)
 	numfiles += dbaccessed
@@ -245,14 +253,14 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 
 	if len(mdbnames) != 0 {
 		results := connectExecute(dir, mdbnames)
-		fmt.Println(results + "\n*************************\n")
+		log.Println(results + "\n*************************\n")
 		result += ".mdb Files Executed"
 	} else {
 		result += ".mdb Files Empty"
 	}
 
 	if len(accdbnames) != 0 {
-		fmt.Println(connectExecute(dir, accdbnames) + "\n*************************\n")
+		log.Println(connectExecute(dir, accdbnames) + "\n*************************\n")
 		result += " .accdb Files Executed"
 	} else {
 		result += " .accdb Files Empty"
@@ -264,13 +272,13 @@ func dbPresent(dir string, mdbnames []string, accdbnames []string) string {
 func walkDir(foldernames []string, dir string) {
 	for _, foldername := range foldernames {
 		newDir := dir + foldername + "/"
-		fmt.Printf("\nEntering Folder Directory: %s\n", newDir)
+		log.Printf("\nEntering Folder Directory: %s\n", newDir)
 		numfolders++
 		mdbnames, accdbnames, newfoldernames := findDB(newDir)
 		printDirInfo(mdbnames, accdbnames, foldernames, dir)
 		result := dbPresent(newDir, mdbnames, accdbnames)
-		fmt.Printf("\n%s \n", result)
-		fmt.Println(newDir)
+		log.Printf("\n%s \n", result)
+		log.Println(newDir)
 		walkDir(newfoldernames, newDir)
 	}
 
@@ -278,20 +286,21 @@ func walkDir(foldernames []string, dir string) {
 
 //printDirInfo prints information about the dir
 func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, dir string) {
-	fmt.Printf("Number of .mdb files in %s: %d \nNumber of .accdb files in %s: %d \nNumber of Folders in %s: %d\n\n", dir, len(mdbnames), dir, len(accdbnames), dir, len(foldernames))
+	log.Printf("Number of .mdb files in %s: %d \nNumber of .accdb files in %s: %d \nNumber of Folders in %s: %d\n\n", dir, len(mdbnames), dir, len(accdbnames), dir, len(foldernames))
 }
 
 func main() {
 	errFile := access.CreateErrorLog(true)
 	log.SetOutput(errFile)
 	defer errFile.Close()
-	dir := "./"
+	// dir := "./"
+	dir := "C:\\Users\\ext_hsc\\Documents\\valve_registry_working_copy"
 	start := time.Now()
-	fmt.Println("\n\n------START OF PROGRAM------")
+	log.Println("\n\n------START OF PROGRAM------")
 
 	foldernames := []string{""}
 	walkDir(foldernames, dir)
 
 	elapsed := time.Since(start)
-	fmt.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d\nTime Taken: %s", numfolders, numfiles, numtables, rowsinserted, elapsed)
+	log.Printf("\n------COMPLETE------\nFolder(s) Accessed: %d\nFile(s) Accessed: %d\nTable(s) Accessed: %d\nRow(s) Inserted: %d\nTime Taken: %s", numfolders, numfiles, numtables, rowsinserted, elapsed)
 }
