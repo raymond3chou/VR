@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -9,10 +8,6 @@ import (
 	"github.com/access"
 	"github.com/tealeg/xlsx"
 )
-
-//EchoPaths keeps track of all the Echo file paths
-var echoPaths []string
-var tedPaths []string
 
 //walkDirectory goes through the current folder and looks for excel files and folders
 func walkDirectory(folderNames []string, dir string) {
@@ -48,7 +43,8 @@ func findExcel(dir string) ([]string, []string) {
 	return xlsxNames, folderNames
 }
 
-//checkSheet checks if the excel file is an echo file by checking if echo is present in the header columns
+//checkSheet checks if the excel sheet's columns match the checkCriteria
+//if so, save a copy of the file to path
 func checkSheet(xlsxPath string, checkCriteria string, path string) bool {
 	log.Println(xlsxPath)
 	sheet, err := xlsx.OpenFile(xlsxPath)
@@ -61,15 +57,20 @@ func checkSheet(xlsxPath string, checkCriteria string, path string) bool {
 			cellValue := sheet.Sheets[0].Cell(0, i).Value
 			cellValue = strings.ToLower(cellValue)
 			if strings.Contains(cellValue, checkCriteria) {
-				xlsxPathNew := strings.TrimPrefix(xlsxPath, "L:\\CVDMC Students\\valve_registry\\")
-				newName := strings.Replace(xlsxPathNew, "\\", "_", -1)
-				fmt.Println(path + newName)
+				newName := createXlsxName(xlsxPath)
 				sheet.Save(path + newName)
 				return true
 			}
 		}
 	}
 	return false
+}
+
+//createXlsxName removes the directory from the path and replaces \ with _
+func createXlsxName(xlsxPath string) string {
+	xlsxPathNew := strings.TrimPrefix(xlsxPath, "L:\\CVDMC Students\\valve_registry\\")
+	newName := strings.Replace(xlsxPathNew, "\\", "_", -1)
+	return newName
 }
 
 //checkTED checks if the excel file is a ted file by checking if there is ted in the name
