@@ -72,14 +72,14 @@ func TestConvertToString(t *testing.T) {
 }
 
 func TestConvertToText(t *testing.T) {
-
+	dbq := "C:\\Desktop\\Test.mdb"
 	maincol := []string{"A", "B", "C", "D", "E", "G"}
 	cols := make([]access.OrderedMap, 4)
 	cols[0] = access.OrderedMap{Colname: "A", Value: "a"}
 	cols[1] = access.OrderedMap{Colname: "B", Value: "b"}
 	cols[2] = access.OrderedMap{Colname: "C", Value: " "}
 	cols[3] = access.OrderedMap{Colname: "D_wdad", Value: "d"}
-	actualrow := access.ConvertToText(maincol, cols)
+	actualrow := access.ConvertToText(maincol, cols, dbq)
 	expectedrow := "\na|b| |d||"
 
 	if actualrow != expectedrow {
@@ -131,6 +131,7 @@ func TestSelectAccess(t *testing.T) {
 	log.SetOutput(fileErr)
 	defer fileErr.Close()
 	//create file
+	dbq := "C:\\Desktop\\Test.mdb"
 	path := "C:\\Users\\raymond chou\\Desktop\\TestWrite.txt"
 	access.CreateFile(path)
 	file, _ := access.ConnectToTxt(path)
@@ -142,7 +143,7 @@ func TestSelectAccess(t *testing.T) {
 	tableArray := []string{"AV Sparing 2013 FU", "ContactInfo3", "Copy Of Table1", "Table1", "Table2"}
 
 	for _, tablename := range tableArray {
-		insertedRows, numberofRows := selectAccess(conn, file, tablename)
+		insertedRows, numberofRows := selectAccess(conn, file, tablename, dbq)
 		if tablename == "ContactInfo3" && insertedRows != 0 && numberofRows != 0 {
 			t.Errorf("%s is not a follow up table but is read", tablename)
 			t.Fail()

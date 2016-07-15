@@ -26,7 +26,7 @@ var (
 //If no column names are present then it returns an empty query
 func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	followup := false
-	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB", "CARDIO1", "CARDIO2", "GP1", "GP2"}
+	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB", "CARDIO1", "CARDIO2", "GP1", "GP2", "FU_D"}
 	var query string
 	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
@@ -66,7 +66,7 @@ func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 }
 
 //selectAccess
-func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
+func selectAccess(conn *sql.DB, file *os.File, tablename string, dbq string) (int, int) {
 	//Queries the database, and passes the row to be appended to the test file
 	//returns # inserted
 	var selectquery string
@@ -125,7 +125,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string) (int, int) {
 		numberofRows++
 		rowstring := access.ConvertToString(vals)
 		cols := access.ConvertToOrderedMap(colsOMap, rowstring)
-		row := access.ConvertToText(maincolumns, cols)
+		row := access.ConvertToText(maincolumns, cols, dbq)
 		inserted += access.FileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
@@ -228,10 +228,12 @@ func connectExecute(dir string, dbnames []string) string {
 		if !connection {
 			continue
 		}
+		dbq := dir + "/" + dbname
+
 		//Opens text file that can be constantly appended to. ONLY NEEDS TO BE CALLED ONCE
 		var tableused int
 		for _, tablename := range tablenames {
-			inserted, numberofRows := selectAccess(isConnected, file, tablename)
+			inserted, numberofRows := selectAccess(isConnected, file, tablename, dbq)
 			log.Printf("Total Number of Rows Read and Inserted from %s = %d/%d\n", tablename, inserted, numberofRows)
 			tableused++
 			rowsinserted += inserted
