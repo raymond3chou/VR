@@ -3,4 +3,4 @@ The Program looks to connect to MS Access, go through each sheet/table in the da
 
 Built with Golang, SQL, MS Access
 
-**github.com/access package is in access repo**
+**accessHelper and excelHelper packages are in access repo**
