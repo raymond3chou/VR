@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 
+	"github.com/LynneXie1201/Read_From_Excel/helper"
 	"github.com/access/excelHelper"
+	"github.com/access/periopchecks"
 	"github.com/tealeg/xlsx"
 )
 
@@ -44,6 +47,7 @@ type PeriOp struct {
 	CDOC       string `json:"cdoc"`
 	CATRIAL    string `json:"catrial"`
 	ANTRIAL    string `json:"antrial"`
+	TIMING     string `json:"timing"`
 	FROM       string `json:"from"`
 	ACBREDO    string `json:"acbredo"`
 	AVREDO     string `json:"avredo"`
@@ -93,6 +97,8 @@ type PeriOp struct {
 	CATH       string `json:"cath"`
 	CATHDATE   string `json:"cathdate"`
 	ANGINA     string `json:"angina"`
+	PREOPMI    string `json:"preopmi"`
+	MIDATE     string `json:"midate"`
 	NYHA       string `json:"nyha"`
 	CCS        string `json:"ccs"`
 	LVGRADE    string `json:"lvgrade"`
@@ -120,6 +126,7 @@ type PeriOp struct {
 	SHOCK      string `json:"shock"`
 	SYNCOPE    string `json:"syncope"`
 	ASP        string `json:"asp"`
+	AMI        string `json:"ami"`
 	CREAT      string `json:"creat"`
 	STATIN     string `json:"statin"`
 	AVDIS      string `json:"avdis"`
@@ -184,6 +191,7 @@ type PeriOp struct {
 	AAS        string `json:"aas"`
 	AOPATH     string `json:"aopath"`
 	MAZE       string `json:"maze"`
+	MISC       string `json:"misc"`
 	OTHERTYPE  string `json:"othertype"`
 	ASSDEV     string `json:"assdev"`
 	DEVICETYPE string `json:"devicetype"`
@@ -204,6 +212,7 @@ type PeriOp struct {
 	OTHGFT     string `json:"othgft"`
 	ACBNUM     string `json:"acbnum"`
 	PUMPCASE   string `json:"pumpcase"`
+	MININV     string `json:"mininv"`
 	ORTIME     string `json:"ortime"`
 	PUMP       string `json:"pump"`
 	CLAMP      string `json:"clamp"`
@@ -217,18 +226,32 @@ type PeriOp struct {
 	HYPOTHER   string `json:"hypother"`
 	OFFPUMP    string `json:"offpump"`
 	IABP       string `json:"iabp"`
+	REOPNUM    string `json:"reopnum"`
+	REOP       string `json:"reop"`
+	REOP2      string `json:"reop2"`
+	REOP3      string `json:"reop3"`
+	REOP4      string `json:"reop4"`
+	REOP5      string `json:"reop5"`
+	REOPPUMP   string `json:"reoppump"`
+	REOPPUMP2  string `json:"reoppump2"`
+	REOPPUMP3  string `json:"reoppump3"`
+	REOPPUMP4  string `json:"reoppump4"`
+	REOPPUMP5  string `json:"reoppump5"`
 	IECG       string `json:"iecg"`
 	CK         string `json:"ck"`
 	CKMB       string `json:"ckmb"`
+	MI         string `json:"mi"`
 	INO        string `json:"ino"`
 	LOS        string `json:"los"`
 	RENALINO   string `json:"renalino"`
 	POSTRF     string `json:"postrf"`
+	PACE       string `json:"pace"`
 	OCVENDYS   string `json:"ocvendys"`
 	AFIB       string `json:"afib"`
 	OCDVT      string `json:"ocdvt"`
 	OCPULMC    string `json:"ocpulmc"`
 	SEIZURES   string `json:"seizures"`
+	TIA        string `json:"tia"`
 	PREHB      string `json:"prehb"`
 	POSTHB     string `json:"posthb"`
 	RBC        string `json:"rbc"`
@@ -238,10 +261,12 @@ type PeriOp struct {
 	CHRPTS     string `json:"chrpts"`
 	OTHER      string `json:"other"`
 	OTHERNOTE  string `json:"othernote"`
+	STROKE     string `json:"stroke"`
 	INFARM     string `json:"infarm"`
 	INFLEG     string `json:"infleg"`
 	INFSTERN   string `json:"infstern"`
 	INFSEP     string `json:"infsep"`
+	SURVIVAL   string `json:"survival"`
 	DCTO       string `json:"dcto"`
 	PROC       string `json:"proc"`
 	NOTES      string `json:"notes"`
@@ -264,6 +289,114 @@ func checkDate() {
 	// helper.CheckDateFormat()
 }
 
+func checkRow(rowSlice map[string]string, rowNum int) {
+	// for loop for all binary codes
+	binaryCodeArray := []string{"AREA", "TRIANGE", "SDA", "CATRIAL", "ANTRIAL", "PITHROMB", "DIABETES", "HYPER", "CHLSTRL", "FHX", "COPD", "COPDS", "THROMB", "NEWRF", "DIAL", "MARFAN", "CHF", "SHOCK", "SYNCOPE", "ASP", "AMI", "STATIN"}
+	nonNegativeArray := []string{"DAYSPOST", "ICUNUM", "ICU", "VENT", "CREAT"}
+	for _, b := range binaryCodeArray {
+		if !periopcheck.CheckValidNumber(0, 2, rowSlice[b]) {
+			periopcheck.ErrorHandler(true, rowNum, b, rowSlice[b])
+		}
+	}
+	for _, n := range nonNegativeArray {
+		if !periopcheck.CheckNonNegative(rowSlice[n]) {
+			periopcheck.ErrorHandler(true, rowNum, n, rowSlice[n])
+		}
+	}
+	//DEMOGRAPHICS:
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["AREA"]) {
+		periopcheck.ErrorHandler(true, rowNum, "AREA", rowSlice["AREA"])
+	}
+	if !periopcheck.CheckValidNumber(1, 2, rowSlice["SEX"]) {
+		periopcheck.ErrorHandler(true, rowNum, "SEX", rowSlice["SEX"])
+	}
+	//DATES & DOCTORS:
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["ICUTIME"]) {
+		periopcheck.ErrorHandler(true, rowNum, "ICUTIME", rowSlice["ICUTIME"])
+	}
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["VENTIME"]) {
+		periopcheck.ErrorHandler(true, rowNum, "VENTIME", rowSlice["VENTIME"])
+	}
+	//GENERAL PATIENT DATA :
+	if !periopcheck.CheckValidNumber(1, 4, rowSlice["TIMING"]) {
+		periopcheck.ErrorHandler(true, rowNum, "TIMING", rowSlice["TIMING"])
+	}
+	if !periopcheck.CheckValidNumber(1, 5, rowSlice["FROM"]) {
+		periopcheck.ErrorHandler(true, rowNum, "FROM", rowSlice["FROM"])
+	}
+	//****************************************************************
+	if !periopcheck.CheckValidNumber(0, 1, rowSlice["ACBREDO"]) {
+		periopcheck.ErrorHandler(true, rowNum, "ACBREDO", rowSlice["ACBREDO"])
+	}
+	if !periopcheck.CheckValidNumber(0, 3, rowSlice["AVREDO"]) {
+		periopcheck.ErrorHandler(true, rowNum, "AVREDO", rowSlice["AVREDO"])
+	}
+	if !periopcheck.CheckValidNumber(0, 3, rowSlice["MVREDO"]) {
+		periopcheck.ErrorHandler(true, rowNum, "MVREDO", rowSlice["MVREDO"])
+	}
+	//****************************************************************
+	//PREVIOUS (NON-SURGICAL) INTERVENTION:
+	if !periopcheck.CheckValidNumber(1, 2, rowSlice["PRECARD"]) {
+		periopcheck.ErrorHandler(true, rowNum, "PRECARD", rowSlice["PRECARD"])
+	}
+	//CLINICAL PRESENTATION:
+	if !periopcheck.CheckValidNumber(0, 3, rowSlice["ANGINA"]) {
+		periopcheck.ErrorHandler(true, rowNum, "ANGINA", rowSlice["ANGINA"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["PREOPMI"]) {
+		periopcheck.ErrorHandler(true, rowNum, "PREOPMI", rowSlice["PREOPMI"])
+	}
+	if !periopcheck.CheckValidNumber(1, 4, rowSlice["NYHA"]) {
+		periopcheck.ErrorHandler(true, rowNum, "NYHA", rowSlice["NYHA"])
+	}
+	if !periopcheck.CheckValidNumber(1, 4, rowSlice["LVGRADE"]) {
+		periopcheck.ErrorHandler(true, rowNum, "LVGRADE", rowSlice["LVGRADE"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["STRESS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "STRESS", rowSlice["STRESS"])
+	}
+	//C.A.D. RISKS:
+	if !periopcheck.CheckValidNumber(0, 4, rowSlice["DOI"]) {
+		periopcheck.ErrorHandler(true, rowNum, "DOI", rowSlice["DOI"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["SMOKE"]) {
+		periopcheck.ErrorHandler(true, rowNum, "SMOKE", rowSlice["SMOKE"])
+	}
+	//ASSOCIATED DISEASES:
+	if !periopcheck.CheckPVD(rowSlice["PVD"], rowSlice["CORATID"]) {
+		periopcheck.ErrorHandler(true, rowNum, "PVD", rowSlice["PVD"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["RF"]) {
+		periopcheck.ErrorHandler(true, rowNum, "RF", rowSlice["RF"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["CAROTID"]) {
+		periopcheck.ErrorHandler(true, rowNum, "CAROTID", rowSlice["CAROTID"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["ADD"]) {
+		periopcheck.ErrorHandler(true, rowNum, "ADD", rowSlice["ADD"])
+	}
+	if !periopcheck.CheckValidNumber(0, 2, rowSlice["RECG"]) {
+		periopcheck.ErrorHandler(true, rowNum, "RECG", rowSlice["RECG"])
+	}
+	//VALVE PATIENT DATA:
+}
+
+func combineMultiFields() {
+
+}
+
+//uniformDates converts all dates to YYYY-MM-DD
+func uniformDates(rowSlice map[string]string, row int) map[string]string {
+	for value := range rowSlice {
+		value = strings.ToLower(value)
+		if strings.Contains(value, "date") {
+			date := helper.CheckDateFormat(row, value, rowSlice[value])
+			rowSlice[value] = date
+		}
+	}
+	return rowSlice
+}
+
 //parseData reads the sheet and inserts the cell values into a map with the column name as the key
 func parseData(sheet *xlsx.File) {
 	rowSlice := make(map[string]string)
@@ -281,8 +414,8 @@ func main() {
 	dirTGH := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TGH perioperative.xlsx"
 	// dirTWH := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TWH perioperative.xlsx"
 	tghFile := excelHelper.ConnectToXlsx(dirTGH)
-	// tghCols := excelHelper.IdentifyCols(tghFile)
+	tghCols := excelHelper.IdentifyCols(tghFile)
 	// twhFile := excelHelper.ConnectToXlsx(dirTWH)
 	// twhCols := excelHelper.IdentifyCols(twhFile)
-	parseData(tghFile)
+	excelHelper.WriteStruct(tghCols)
 }
