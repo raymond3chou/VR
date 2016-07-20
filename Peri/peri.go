@@ -25,6 +25,20 @@ type Event struct {
 	Fix        []string `json:"fix"`
 }
 
+//MultiField type for multiple key-value pairs
+type MultiField struct {
+	Name string
+	Min  int
+	Max  int
+}
+
+//Field type for key-value pair
+type Field struct {
+	Name string
+	Min  int
+	Max  int
+}
+
 //PeriOp is the object for periop data
 type PeriOp struct {
 	PERIOPID   string `json:"periop_id"`
@@ -291,8 +305,10 @@ func checkDate() {
 
 func checkRow(rowSlice map[string]string, rowNum int) {
 	// for loop for all binary codes
-	binaryCodeArray := []string{"AREA", "TRIANGE", "SDA", "CATRIAL", "ANTRIAL", "PITHROMB", "DIABETES", "HYPER", "CHLSTRL", "FHX", "COPD", "COPDS", "THROMB", "NEWRF", "DIAL", "MARFAN", "CHF", "SHOCK", "SYNCOPE", "ASP", "AMI", "STATIN"}
-	nonNegativeArray := []string{"DAYSPOST", "ICUNUM", "ICU", "VENT", "CREAT"}
+	binaryCodeArray := []string{"AREA", "TRIANGE", "SDA", "CATRIAL", "ANTRIAL", "PITHROMB", "DIABETES", "HYPER", "CHLSTRL", "FHX", "COPD", "COPDS", "THROMB", "NEWRF", "DIAL", "MARFAN", "CHF", "SHOCK", "SYNCOPE", "ASP", "AMI", "STATIN", "GORTEX", "SEPT", "MAZE", "DISLAD", "DISCX", "DISRCA", "LMAIN", "SKEGRAFT", "MININV", "MI", "INO", "RENALINO", "LOS", "PACE", "OCVENDYS", "AFIB", "OCDVT", "OCPULMC", "SEIZURES", "TIA", "INFARM", "INFSEP", "SURVIVAL"}
+	nonNegativeArray := []string{"DAYSPOST", "ICUNUM", "ICU", "VENT", "CREAT", "AVSIZE", "MVSIZE", "TVSIZE", "PVSIZE", "CI", "MPAP", "SYSAVG", "LVEDP", "PVR", "MVGRADR", "AVAREA", "MVAREA", "AVXPLSIZE", "MVXPLSIZE", "TVXPLSIZE", "DISNUM", "GFTLAD", "GFTCX", "GFTRCA", "ACBNUM", "ORTIME", "PUMP", "CLAMP", "CIRARR", "HT", "WT", "REOPNUM", "CK", "CKMB", "PREHB", "POSTHB", "PACKCELLS"}
+	var multiFieldArray []MultiField
+	var fieldArray []Field
 	for _, b := range binaryCodeArray {
 		if !periopcheck.CheckValidNumber(0, 2, rowSlice[b]) {
 			periopcheck.ErrorHandler(true, rowNum, b, rowSlice[b])
@@ -304,13 +320,13 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 		}
 	}
 	//DEMOGRAPHICS:
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["AREA"]) {
-		periopcheck.ErrorHandler(true, rowNum, "AREA", rowSlice["AREA"])
-	}
-	if !periopcheck.CheckValidNumber(1, 2, rowSlice["SEX"]) {
-		periopcheck.ErrorHandler(true, rowNum, "SEX", rowSlice["SEX"])
-	}
+	f := Field{"AREA", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"SEX", 0, 2}
+	fieldArray = append(fieldArray, f)
+
 	//DATES & DOCTORS:
+
 	if !periopcheck.CheckNonNegativeFloat(rowSlice["ICUTIME"]) {
 		periopcheck.ErrorHandler(true, rowNum, "ICUTIME", rowSlice["ICUTIME"])
 	}
@@ -318,12 +334,11 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 		periopcheck.ErrorHandler(true, rowNum, "VENTIME", rowSlice["VENTIME"])
 	}
 	//GENERAL PATIENT DATA :
-	if !periopcheck.CheckValidNumber(1, 4, rowSlice["TIMING"]) {
-		periopcheck.ErrorHandler(true, rowNum, "TIMING", rowSlice["TIMING"])
-	}
-	if !periopcheck.CheckValidNumber(1, 5, rowSlice["FROM"]) {
-		periopcheck.ErrorHandler(true, rowNum, "FROM", rowSlice["FROM"])
-	}
+	f = Field{"TIMING", 1, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"FROM", 1, 5}
+	fieldArray = append(fieldArray, f)
+
 	//****************************************************************
 	if !periopcheck.CheckValidNumber(0, 1, rowSlice["ACBREDO"]) {
 		periopcheck.ErrorHandler(true, rowNum, "ACBREDO", rowSlice["ACBREDO"])
@@ -336,53 +351,223 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	}
 	//****************************************************************
 	//PREVIOUS (NON-SURGICAL) INTERVENTION:
-	if !periopcheck.CheckValidNumber(1, 2, rowSlice["PRECARD"]) {
-		periopcheck.ErrorHandler(true, rowNum, "PRECARD", rowSlice["PRECARD"])
-	}
+	f = Field{"PRECARD", 1, 2}
+	fieldArray = append(fieldArray, f)
+
 	//CLINICAL PRESENTATION:
-	if !periopcheck.CheckValidNumber(0, 3, rowSlice["ANGINA"]) {
-		periopcheck.ErrorHandler(true, rowNum, "ANGINA", rowSlice["ANGINA"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["PREOPMI"]) {
-		periopcheck.ErrorHandler(true, rowNum, "PREOPMI", rowSlice["PREOPMI"])
-	}
-	if !periopcheck.CheckValidNumber(1, 4, rowSlice["NYHA"]) {
-		periopcheck.ErrorHandler(true, rowNum, "NYHA", rowSlice["NYHA"])
-	}
-	if !periopcheck.CheckValidNumber(1, 4, rowSlice["LVGRADE"]) {
-		periopcheck.ErrorHandler(true, rowNum, "LVGRADE", rowSlice["LVGRADE"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["STRESS"]) {
-		periopcheck.ErrorHandler(true, rowNum, "STRESS", rowSlice["STRESS"])
-	}
+	f = Field{"ANGINA", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"PREOPMI", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"NYHA", 1, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"LVGRADE", 1, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"STRESS", 0, 2}
+	fieldArray = append(fieldArray, f)
+
 	//C.A.D. RISKS:
-	if !periopcheck.CheckValidNumber(0, 4, rowSlice["DOI"]) {
-		periopcheck.ErrorHandler(true, rowNum, "DOI", rowSlice["DOI"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["SMOKE"]) {
-		periopcheck.ErrorHandler(true, rowNum, "SMOKE", rowSlice["SMOKE"])
-	}
+	f = Field{"DOI", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"SMOKE", 0, 2}
+	fieldArray = append(fieldArray, f)
+
 	//ASSOCIATED DISEASES:
 	if !periopcheck.CheckPVD(rowSlice["PVD"], rowSlice["CORATID"]) {
 		periopcheck.ErrorHandler(true, rowNum, "PVD", rowSlice["PVD"])
 	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["RF"]) {
-		periopcheck.ErrorHandler(true, rowNum, "RF", rowSlice["RF"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["CAROTID"]) {
-		periopcheck.ErrorHandler(true, rowNum, "CAROTID", rowSlice["CAROTID"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["ADD"]) {
-		periopcheck.ErrorHandler(true, rowNum, "ADD", rowSlice["ADD"])
-	}
-	if !periopcheck.CheckValidNumber(0, 2, rowSlice["RECG"]) {
-		periopcheck.ErrorHandler(true, rowNum, "RECG", rowSlice["RECG"])
-	}
+	f = Field{"RF", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"CAROTID", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"ADD", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"RECG", 0, 2}
+	fieldArray = append(fieldArray, f)
+
 	//VALVE PATIENT DATA:
+	f = Field{"AVDIS", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"ENDOCARD", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"URGENT", 0, 7}
+	fieldArray = append(fieldArray, f)
+	f = Field{"MVDIS", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"TVDIS", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	//AORTIC VALVE SURGERY:
+	f = Field{"AVSURG", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"D2", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"ANNULEN", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	//MultiField AVPATH
+	multiField := MultiField{"AVPATH", 0, 8}
+	multiFieldArray = append(multiFieldArray, multiField)
+
+	if !periopcheck.CheckVPROS(rowSlice["AVPROS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "AVPROS", rowSlice["AVPROS"])
+	}
+	//MITRAL VALVE SURGERY:
+	f = Field{"MVSURG", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"AREA", 0, 2}
+	fieldArray = append(fieldArray, f)
+
+	//MultiField MVPATH
+	multiField = MultiField{"MVPATH", 0, 7}
+	multiFieldArray = append(multiFieldArray, multiField)
+
+	f = Field{"MVANN", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"CHORD", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"MVP", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"MVC", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"CHORDAL", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	if !periopcheck.CheckVPROS(rowSlice["MVPROS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "MVPROS", rowSlice["MVPROS"])
+	}
+	//TRICUSPID VALVE SURGERY:
+	f = Field{"TVSURG", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	//MultiField TVPATH
+	multiField = MultiField{"TVPATH", 0, 5}
+	multiFieldArray = append(multiFieldArray, multiField)
+
+	if !periopcheck.CheckVPROS(rowSlice["TVPROS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "TVPROS", rowSlice["TVPROS"])
+	}
+	//PULMONARY VALVE SURGERY:
+	f = Field{"PVSURG", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	if !periopcheck.CheckVPROS(rowSlice["PVPROS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "PVPROS", rowSlice["PVPROS"])
+	}
+	//EXPLANTED VALVES:
+	//AORTIC:
+	if !periopcheck.CheckVPROS(rowSlice["AVXPLTYPE"]) {
+		periopcheck.ErrorHandler(true, rowNum, "AVXPLTYPE", rowSlice["AVXPLTYPE"])
+	}
+	f = Field{"AVXPLTYPE", 0, 6}
+	fieldArray = append(fieldArray, f)
+
+	//MITRAL:
+	if !periopcheck.CheckVPROS(rowSlice["MVXPLTYPE"]) {
+		periopcheck.ErrorHandler(true, rowNum, "MVXPLTYPE", rowSlice["MVXPLTYPE"])
+	}
+	f = Field{"MVXPLTYPE", 0, 6}
+	fieldArray = append(fieldArray, f)
+
+	//TRICUSPID:
+	if !periopcheck.CheckVPROS(rowSlice["TVXPLTYPE"]) {
+		periopcheck.ErrorHandler(true, rowNum, "TVXPLTYPE", rowSlice["TVXPLTYPE"])
+	}
+	f = Field{"TVXPLPATH", 0, 6}
+	fieldArray = append(fieldArray, f)
+
+	//OTHER PROCEDURES/OPERATIONS:
+	f = Field{"LVA", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"SEPTYPE", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"CHD", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"AAS", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"AOPATH", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"MISC", 1, 11}
+	fieldArray = append(fieldArray, f)
+	f = Field{"OTHERTYPE", 0, 5}
+	fieldArray = append(fieldArray, f)
+	f = Field{"DEVICETYPE", 0, 5}
+	fieldArray = append(fieldArray, f)
+
+	//ACB PATIENT DATA:
+	//ALL BINARY OR NON negative
+
+	//ARTERIES BYPASSED:
+	f = Field{"LIMA", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"RIMA", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"RADIAL", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"ENDART", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"CVPA", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"OTHGFT", 0, 3}
+	fieldArray = append(fieldArray, f)
+
+	//GENERAL OPERATIVE DATA:
+	f = Field{"PUMPCASE", 0, 2}
+	fieldArray = append(fieldArray, f)
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["BSA"]) {
+		periopcheck.ErrorHandler(true, rowNum, "BSA", rowSlice["BSA"])
+	}
+	f = Field{"MYOPRO", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"TECH", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"DIRECT", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"HYPOTHER", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"OFFPUMP", 0, 2}
+	fieldArray = append(fieldArray, f)
+
+	//COMPLICATIONS:
+	f = Field{"IABP", 0, 4}
+	fieldArray = append(fieldArray, f)
+	//MultiField REOP
+	multiField = MultiField{"REOP", 0, 7}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField REOPPUMP
+	multiField = MultiField{"REOPPUMP", 0, 2}
+	multiFieldArray = append(multiFieldArray, multiField)
+
+	f = Field{"IECG", 0, 4}
+	fieldArray = append(fieldArray, f)
+	f = Field{"POSTRF", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"STROKE", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"INFLEG", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"INFSTERN", 0, 2}
+	fieldArray = append(fieldArray, f)
+	f = Field{"DCTO", 0, 3}
+	fieldArray = append(fieldArray, f)
+	f = Field{"PROC", 1, 3}
+	fieldArray = append(fieldArray, f)
+	//END
 }
 
-func combineMultiFields() {
-
+//combineMultiFields looks for field names containing a multifield and appends them to a slice of int
+func combineMultiFields(fieldName string, rowSlice map[string]string, rowNum int, min int, max int) []int {
+	var multiField []int
+	for field := range rowSlice {
+		if strings.Contains(field, fieldName) {
+			if !periopcheck.CheckValidNumber(min, max, rowSlice[field]) {
+				periopcheck.ErrorHandler(true, rowNum, field, rowSlice[field])
+			}
+			value := excelHelper.StringToInt(rowSlice[field])
+			multiField = append(multiField, value)
+		}
+	}
+	return multiField
 }
 
 //uniformDates converts all dates to YYYY-MM-DD
