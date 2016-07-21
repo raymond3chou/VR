@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/LynneXie1201/Read_From_Excel/helper"
@@ -37,6 +39,12 @@ type Field struct {
 	Name string
 	Min  int
 	Max  int
+}
+
+//Fix is an object that highlights the errors when reading from file
+type Fix struct {
+	Field string `json:"field"`
+	Msg   string `json:"msg"`
 }
 
 //PeriOp is the object for periop data
@@ -289,6 +297,7 @@ type PeriOp struct {
 	DRUG6      string `json:"drug6"`
 	CORMATRIX  string `json:"cormatrix"`
 	CELLSAVER  string `json:"cellsaver"`
+	FIX        []Fix  `json:"fix"`
 }
 
 func writeJSON(newEvent Event, jsonFile *os.File) {
@@ -307,6 +316,7 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	// for loop for all binary codes
 	binaryCodeArray := []string{"AREA", "TRIANGE", "SDA", "CATRIAL", "ANTRIAL", "PITHROMB", "DIABETES", "HYPER", "CHLSTRL", "FHX", "COPD", "COPDS", "THROMB", "NEWRF", "DIAL", "MARFAN", "CHF", "SHOCK", "SYNCOPE", "ASP", "AMI", "STATIN", "GORTEX", "SEPT", "MAZE", "DISLAD", "DISCX", "DISRCA", "LMAIN", "SKEGRAFT", "MININV", "MI", "INO", "RENALINO", "LOS", "PACE", "OCVENDYS", "AFIB", "OCDVT", "OCPULMC", "SEIZURES", "TIA", "INFARM", "INFSEP", "SURVIVAL"}
 	nonNegativeArray := []string{"DAYSPOST", "ICUNUM", "ICU", "VENT", "CREAT", "AVSIZE", "MVSIZE", "TVSIZE", "PVSIZE", "CI", "MPAP", "SYSAVG", "LVEDP", "PVR", "MVGRADR", "AVAREA", "MVAREA", "AVXPLSIZE", "MVXPLSIZE", "TVXPLSIZE", "DISNUM", "GFTLAD", "GFTCX", "GFTRCA", "ACBNUM", "ORTIME", "PUMP", "CLAMP", "CIRARR", "HT", "WT", "REOPNUM", "CK", "CKMB", "PREHB", "POSTHB", "PACKCELLS"}
+	// nameArray := []string{"SURG", "ASSIST", "FDOC", "CDOC"}
 	var multiFieldArray []MultiField
 	var fieldArray []Field
 	for _, b := range binaryCodeArray {
@@ -340,15 +350,21 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	fieldArray = append(fieldArray, f)
 
 	//****************************************************************
-	if !periopcheck.CheckValidNumber(0, 1, rowSlice["ACBREDO"]) {
-		periopcheck.ErrorHandler(true, rowNum, "ACBREDO", rowSlice["ACBREDO"])
-	}
-	if !periopcheck.CheckValidNumber(0, 3, rowSlice["AVREDO"]) {
-		periopcheck.ErrorHandler(true, rowNum, "AVREDO", rowSlice["AVREDO"])
-	}
-	if !periopcheck.CheckValidNumber(0, 3, rowSlice["MVREDO"]) {
-		periopcheck.ErrorHandler(true, rowNum, "MVREDO", rowSlice["MVREDO"])
-	}
+	//MultiField ACBREDO
+	multiField := MultiField{"ACBREDOP", 0, 1}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField AVREDO
+	multiField = MultiField{"AVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField MVREDO
+	multiField = MultiField{"MVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField TVREDO
+	multiField = MultiField{"TVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField OTHEREDO
+	multiField = MultiField{"OTHEREDO", 0, 1}
+	multiFieldArray = append(multiFieldArray, multiField)
 	//****************************************************************
 	//PREVIOUS (NON-SURGICAL) INTERVENTION:
 	f = Field{"PRECARD", 1, 2}
@@ -361,6 +377,9 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	fieldArray = append(fieldArray, f)
 	f = Field{"NYHA", 1, 4}
 	fieldArray = append(fieldArray, f)
+	if !periopcheck.CheckValid(rowSlice["CCS"]) {
+		periopcheck.ErrorHandler(true, rowNum, "CCS", rowSlice["CCS"])
+	}
 	f = Field{"LVGRADE", 1, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"STRESS", 0, 2}
@@ -406,7 +425,7 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	fieldArray = append(fieldArray, f)
 
 	//MultiField AVPATH
-	multiField := MultiField{"AVPATH", 0, 8}
+	multiField = MultiField{"AVPATH", 0, 8}
 	multiFieldArray = append(multiFieldArray, multiField)
 
 	if !periopcheck.CheckVPROS(rowSlice["AVPROS"]) {
@@ -553,6 +572,16 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	f = Field{"PROC", 1, 3}
 	fieldArray = append(fieldArray, f)
 	//END
+	//check all f in fieldArray
+	for i := range fieldArray {
+		if !periopcheck.CheckValidNumber(fieldArray[i].Min, fieldArray[i].Max, fieldArray[i].Name) {
+			periopcheck.ErrorHandler(true, rowNum, fieldArray[i].Name, rowSlice[fieldArray[i].Name])
+		}
+	}
+
+	for _, f := range multiFieldArray {
+		combineMultiFields(f.Name, rowSlice, rowNum, f.Min, f.Max)
+	}
 }
 
 //combineMultiFields looks for field names containing a multifield and appends them to a slice of int
@@ -592,6 +621,34 @@ func parseData(sheet *xlsx.File) {
 			rowSlice[sheet.Sheets[0].Rows[0].Cells[ci].Value] = sheet.Sheets[0].Rows[ri].Cells[ci].Value
 		}
 	}
+}
+
+//attributes returns the name of the fields of a particular struct
+func attributes(m interface{}) []string {
+	typ := reflect.TypeOf(m)
+	// if a pointer to a struct is passed, get the type of the dereferenced object
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+
+	// create an attribute data structure as a map of types keyed by a string.
+	var attrs []string
+	// Only structs are supported so return an empty result if the passed object
+	// isn't a struct
+	if typ.Kind() != reflect.Struct {
+		fmt.Printf("%v type can't have attributes inspected\n", typ.Kind())
+		return attrs
+	}
+
+	// loop through the struct's fields and set the map
+	for i := 0; i < typ.NumField(); i++ {
+		p := typ.Field(i)
+		if !p.Anonymous {
+			attrs = append(attrs, p.Name)
+		}
+	}
+
+	return attrs
 }
 
 func main() {
