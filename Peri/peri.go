@@ -14,6 +14,10 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
+//TODO VPROS combine into one array and add null when empty
+//TODO somehow parse data into struct
+//TODO create test program
+
 //Event type for event object to be printed to JSON
 type Event struct {
 	PTID       string   `json:"ptid"`
@@ -346,10 +350,12 @@ func checkRow(rowSlice map[string]string, rowNum int) {
 	//DATES & DOCTORS:
 
 	if !periopcheck.CheckNonNegativeFloat(rowSlice["ICUTIME"]) {
-		periopcheck.OutBoundsErrorHandler(rowNum, "ICUTIME", rowSlice)
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "ICUTIME", rowSlice)
+		fixArray = append(fixArray, fix)
 	}
 	if !periopcheck.CheckNonNegativeFloat(rowSlice["VENTIME"]) {
-		periopcheck.OutBoundsErrorHandler(rowNum, "VENTIME", rowSlice)
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "VENTIME", rowSlice)
+		fixArray = append(fixArray, fix)
 	}
 	//GENERAL PATIENT DATA :
 	f = Field{"TIMING", 1, 4}
