@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/access"
 )
 
 //Info blah
 type Info struct {
-	Name  string  `json:"Name"`
+	Name  int     `json:"Name"`
 	Value []Value `json:"Value_"`
 }
 
@@ -30,7 +31,7 @@ func writeJSON() {
 	vArray = append(vArray, v)
 	vArray = append(vArray, v2)
 
-	i := Info{"Trial", vArray}
+	i := Info{2, vArray}
 
 	j, err := json.Marshal(i)
 	if err != nil {
@@ -41,9 +42,9 @@ func writeJSON() {
 }
 
 func printStructFields() {
-	for _, name := range attributes(&Info{}) {
-		fmt.Printf("Name: %s\n", name)
-	}
+	i := reAttributes()
+	fmt.Printf("Name: %d\n", i.Name)
+
 }
 
 func attributes(m interface{}) []string {
@@ -71,4 +72,15 @@ func attributes(m interface{}) []string {
 	}
 
 	return attrs
+}
+
+func reAttributes() Info {
+	var i Info
+	for n := 0; n < reflect.TypeOf(i).NumField(); n++ {
+		field := reflect.TypeOf(i).Field(n).Name
+		if strings.Contains(field, "Name") {
+			reflect.ValueOf(&i).Elem().FieldByName(field).SetInt(9)
+		}
+	}
+	return i
 }
