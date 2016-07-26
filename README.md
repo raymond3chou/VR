@@ -9,3 +9,11 @@ This program reads an xlsx file, parses each row, and checks if they are valid c
 ##VR GoSQL
 This program connects to MS Access, goes through each sheet/table in the database and extract all the needed information then congregates them into a single sheet/table. 
 
+###accessHelper
+This package contains helper functions for MS Access such as type conversions and file I/O.
+
+###excelHelper 
+This package contains helper functions for MS Excel such as reading columns/rows and comparisons.
+
+###periopchecks
+This package constains check functions for Perioperative data code as code validations.
