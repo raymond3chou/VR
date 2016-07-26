@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/access"
+	"github.com/raymond3chou/VR/accessHelper"
 	"github.com/tealeg/xlsx"
 )
 
@@ -88,13 +88,13 @@ func checkExcel(xlsxNames []string, newDir string) {
 		xlsxPath := newDir + xlsx
 		log.Printf("Checking file: %s", xlsx)
 		if checkSheet(xlsxPath, "graftsz", "L:\\CVDMC Students\\Raymond Chou\\ted\\") {
-			tedFile, _ := access.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\tedFiles.txt")
-			access.FileWrite(tedFile, xlsxPath+"\n")
+			tedFile, _ := accessHelper.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\tedFiles.txt")
+			accessHelper.FileWrite(tedFile, xlsxPath+"\n")
 			tedFile.Close()
 		}
 		if checkSheet(xlsxPath, "echo", "L:\\CVDMC Students\\Raymond Chou\\echo\\") {
-			echoFile, _ := access.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\echoFiles.txt")
-			access.FileWrite(echoFile, xlsxPath+"\n")
+			echoFile, _ := accessHelper.ConnectToTxt("C:\\Users\\raymond chou\\Desktop\\echoFiles.txt")
+			accessHelper.FileWrite(echoFile, xlsxPath+"\n")
 			echoFile.Close()
 		}
 	}
@@ -111,7 +111,7 @@ func checkEmptyHeader(sheet *xlsx.File) bool {
 func main() {
 	dir := "L:\\CVDMC Students\\valve_registry\\"
 	folderNames := []string{""}
-	errFile := access.CreateErrorLog(true)
+	errFile := accessHelper.CreateErrorLog(true)
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	walkDirectory(folderNames, dir)

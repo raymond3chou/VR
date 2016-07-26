@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/access"
 	_ "github.com/alexbrainman/odbc"
+	"github.com/raymond3chou/VR/accessHelper"
 )
 
 func TestCreateErrorLog(t *testing.T) {
@@ -18,14 +18,14 @@ func TestCreateErrorLog(t *testing.T) {
 
 	//Checks if Testlog is created using path and works
 	path := "C:\\Users\\raymond chou\\Desktop\\TestLog.log"
-	access.CreateFile(path)
-	errFile, err := access.ConnectToTxt(path)
+	accessHelper.CreateFile(path)
+	errFile, err := accessHelper.ConnectToTxt(path)
 	if !err {
 		log.Fatal("Did not connect\n")
 	}
 	log.SetOutput(errFile)
 	log.Println("Success: C:\\Users\\raymond chou\\Desktop\\TestLog.log")
-	output := access.ReadFile("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
+	output := accessHelper.ReadFile("C:\\Users\\raymond chou\\Desktop\\TestLog.log")
 	if !strings.Contains(output, expectedOutput) {
 		t.Errorf("Output: %s does not Contain Expected Output: %s", output, expectedOutput)
 	}
@@ -62,7 +62,7 @@ func TestConvertToString(t *testing.T) {
 		vals[i] = new(sql.NullString)
 	}
 	stringval := make([]string, 10)
-	row := access.ConvertToString(vals)
+	row := accessHelper.ConvertToString(vals)
 	actualtype := reflect.TypeOf(row)
 	expectedtype := reflect.TypeOf(stringval)
 
@@ -74,12 +74,12 @@ func TestConvertToString(t *testing.T) {
 func TestConvertToText(t *testing.T) {
 	dbq := "C:\\Desktop\\Test.mdb"
 	maincol := []string{"A", "B", "C", "D", "E", "G"}
-	cols := make([]access.OrderedMap, 4)
-	cols[0] = access.OrderedMap{Colname: "A", Value: "a"}
-	cols[1] = access.OrderedMap{Colname: "B", Value: "b"}
-	cols[2] = access.OrderedMap{Colname: "C", Value: " "}
-	cols[3] = access.OrderedMap{Colname: "D_wdad", Value: "d"}
-	actualrow := access.ConvertToText(maincol, cols, dbq)
+	cols := make([]accessHelper.OrderedMap, 4)
+	cols[0] = accessHelper.OrderedMap{Colname: "A", Value: "a"}
+	cols[1] = accessHelper.OrderedMap{Colname: "B", Value: "b"}
+	cols[2] = accessHelper.OrderedMap{Colname: "C", Value: " "}
+	cols[3] = accessHelper.OrderedMap{Colname: "D_wdad", Value: "d"}
+	actualrow := accessHelper.ConvertToText(maincol, cols, dbq)
 	expectedrow := "\na|b| |d||"
 
 	if actualrow != expectedrow {
@@ -89,14 +89,14 @@ func TestConvertToText(t *testing.T) {
 
 func TestConvertToOrderedMap(t *testing.T) {
 	//can not test if the values matched to the correct map key because maps are random.
-	actualcols := make([]access.OrderedMap, 4)
-	actualcols[0] = access.OrderedMap{Colname: "A", Value: ""}
-	actualcols[1] = access.OrderedMap{Colname: "B", Value: ""}
-	actualcols[2] = access.OrderedMap{Colname: "C", Value: ""}
-	actualcols[3] = access.OrderedMap{Colname: "D", Value: "e"}
+	actualcols := make([]accessHelper.OrderedMap, 4)
+	actualcols[0] = accessHelper.OrderedMap{Colname: "A", Value: ""}
+	actualcols[1] = accessHelper.OrderedMap{Colname: "B", Value: ""}
+	actualcols[2] = accessHelper.OrderedMap{Colname: "C", Value: ""}
+	actualcols[3] = accessHelper.OrderedMap{Colname: "D", Value: "e"}
 
 	rowstring := []string{"a", "b", "c", "d"}
-	rowwithcols := access.ConvertToOrderedMap(actualcols, rowstring)
+	rowwithcols := accessHelper.ConvertToOrderedMap(actualcols, rowstring)
 	for i := range rowwithcols {
 		if actualcols[i].Value == "" {
 			t.Errorf("actualcols[%s]='%s' instead of ''", actualcols[i].Colname, actualcols[i].Value)
@@ -105,18 +105,18 @@ func TestConvertToOrderedMap(t *testing.T) {
 }
 
 func TestFileWrite(t *testing.T) {
-	fileErr := access.CreateErrorLog(true)
+	fileErr := accessHelper.CreateErrorLog(true)
 	log.SetOutput(fileErr)
 	defer fileErr.Close()
 
 	path := "C:\\Users\\raymond chou\\Desktop\\TestFile.txt"
-	access.CreateFile(path)
-	file, _ := access.ConnectToTxt(path)
+	accessHelper.CreateFile(path)
+	file, _ := accessHelper.ConnectToTxt(path)
 
 	row := "Hello World 1234..."
-	access.FileWrite(file, row)
+	accessHelper.FileWrite(file, row)
 	file.Close()
-	actualrow := access.ReadFile(path)
+	actualrow := accessHelper.ReadFile(path)
 	if row != actualrow {
 		t.Errorf("Read %s but Wrote %s", actualrow, row)
 	}
@@ -127,14 +127,14 @@ func TestFileWrite(t *testing.T) {
 }
 
 func TestSelectAccess(t *testing.T) {
-	fileErr := access.CreateErrorLog(true)
+	fileErr := accessHelper.CreateErrorLog(true)
 	log.SetOutput(fileErr)
 	defer fileErr.Close()
 	//create file
 	dbq := "C:\\Desktop\\Test.mdb"
 	path := "C:\\Users\\raymond chou\\Desktop\\TestWrite.txt"
-	access.CreateFile(path)
-	file, _ := access.ConnectToTxt(path)
+	accessHelper.CreateFile(path)
+	file, _ := accessHelper.ConnectToTxt(path)
 
 	//connect to database
 	conn := connectToDB("./Example", "TestDb.accdb")
@@ -166,7 +166,7 @@ func TestSelectAccess(t *testing.T) {
 		}
 	}
 	expectedOutput := "\nTest|1234567|Jim|Lim|1||Main St|Toronto|BC|M7K A6D|123456798||6478032654|@gmail.com||C1|C2|G1|G2\nTest2|1234567|Jim2|Lim2|1||Main St2|Toronto2|BC|M7K A6D||123456798|6478032654|@gmail.com||C1||G1|\nTestRow|135435|||1||Test St|||m27d9dq|||||||||\nTestRow|111111|||1||Test St|||m27d9dq|||||||||"
-	actualOutput := access.ReadFile(path)
+	actualOutput := accessHelper.ReadFile(path)
 	if expectedOutput != actualOutput {
 		t.Errorf("Read %s but should be %s", actualOutput, expectedOutput)
 	}

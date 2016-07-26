@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/LynneXie1201/Read_From_Excel/helper"
-	"github.com/access/excelHelper"
-	"github.com/access/periopchecks"
+	"github.com/raymond3chou/VR/excelHelper"
+	"github.com/raymond3chou/VR/periopchecks"
 	"github.com/tealeg/xlsx"
 )
 

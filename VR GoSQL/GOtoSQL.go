@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/access"
 	_ "github.com/alexbrainman/odbc"
+	"github.com/raymond3chou/VR/accessHelper"
 )
 
 //Global Variables to Track files accessed
@@ -102,7 +102,7 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string, dbq string) (in
 		log.Println(err)
 	}
 
-	colsOMap := make([]access.OrderedMap, len(queriedcols))
+	colsOMap := make([]accessHelper.OrderedMap, len(queriedcols))
 	for i, colname := range queriedcols {
 		colsOMap[i].Colname = colname
 		colsOMap[i].Value = ""
@@ -123,10 +123,10 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string, dbq string) (in
 			return inserted, numberofRows
 		}
 		numberofRows++
-		rowstring := access.ConvertToString(vals)
-		cols := access.ConvertToOrderedMap(colsOMap, rowstring)
-		row := access.ConvertToText(maincolumns, cols, dbq)
-		inserted += access.FileWrite(file, row)
+		rowstring := accessHelper.ConvertToString(vals)
+		cols := accessHelper.ConvertToOrderedMap(colsOMap, rowstring)
+		row := accessHelper.ConvertToText(maincolumns, cols, dbq)
+		inserted += accessHelper.FileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
@@ -224,7 +224,7 @@ func connectExecute(dir string, dbnames []string) string {
 
 		path := "C:\\Users\\ext_hsc\\Desktop\\VR\\ContactInfo.txt"
 		// path := "C:\\Users\\raymond chou\\Desktop\\ContactInfo.txt"
-		file, connection := access.ConnectToTxt(path)
+		file, connection := accessHelper.ConnectToTxt(path)
 		if !connection {
 			continue
 		}
@@ -292,7 +292,7 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
-	errFile := access.CreateErrorLog(true)
+	errFile := accessHelper.CreateErrorLog(true)
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	// dir := "./"
