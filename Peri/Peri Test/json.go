@@ -21,6 +21,11 @@ type Value struct {
 	V string `json:"field"`
 }
 
+//Test blah
+type Test struct {
+	K []int64
+}
+
 func writeJSON() {
 	path := "C:\\Users\\raymond chou\\Desktop\\PeriOp\\test.txt"
 	accessHelper.CreateFile(path)
@@ -83,4 +88,20 @@ func reAttributes() Info {
 		}
 	}
 	return i
+}
+
+func playingWithReflect() {
+	var ok Test
+	x := []int64{1, 2}
+	xType := reflect.TypeOf(x).String()
+	xValue := reflect.ValueOf(x)
+	fmt.Println("Type: " + xType)
+	//if passing x it is passing a copy of x not x itself
+	// Field := reflect.ValueOf(ok).FieldByName("K").Interface()
+	reflect.ValueOf(&ok).Elem().FieldByName("K").Set(xValue)
+
+	// fmt.Println(reflect.TypeOf(&Field))
+	fmt.Println(xValue)
+	fmt.Println(ok.K)
+
 }

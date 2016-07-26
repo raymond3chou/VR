@@ -315,9 +315,10 @@ func addToStruct(rowSlice map[string]string, newPeriOp PeriOp) PeriOp {
 	return newPeriOp
 }
 
-//removeMultiFromMap removes the multi fields from the map
+//addMultitoStruct adds the array of codes to the struct's multifield
 func addMultitoStruct(newPeriOp PeriOp, insert []int64, fieldName string) PeriOp {
-	reflect.ValueOf(&newPeriOp).Elem().FieldByName(fieldName).
+	insertValue := reflect.ValueOf(insert)
+	reflect.ValueOf(&newPeriOp).Elem().FieldByName(fieldName).Set(insertValue)
 	return newPeriOp
 }
 
@@ -336,62 +337,80 @@ func writeJSON(newEvent Event, jsonFile *os.File) {
 	jsonFile.Write(j)
 }
 
-func checkDate() {
-	// helper.CheckDateFormat()
+//fixDate takes in a date and puts it into YYYY-MM-DD format
+func fixDate(rowNum int, fieldName string, date string) string {
+	return helper.CheckDateFormat(rowNum, fieldName, date)
 }
 
 func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []periopcheck.Fix) {
 	var fixArray []periopcheck.Fix
-	var fix periopcheck.Fix
 
-	// for loop for all binary codes
+	return rowSlice, fixArray
+}
+
+//checkStringCodes checks if the string codes are empty
+func checkStringCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
+	nameArray := []string{"SURG", "ASSIST", "FDOC", "CDOC"}
+	for _, name := range nameArray {
+		if rowSlice[name] == "" {
+			fix.Field = "code"
+			fix.Msg = "invalid code:empty"
+		}
+	}
+}
+
+//checkBinaryCodes checks the binary codes
+func checkBinaryCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
 	binaryCodeArray := []string{"AREA", "TRIANGE", "SDA", "CATRIAL", "ANTRIAL", "PITHROMB", "DIABETES", "HYPER", "CHLSTRL", "FHX", "COPD", "COPDS", "THROMB", "NEWRF", "DIAL", "MARFAN", "CHF", "SHOCK", "SYNCOPE", "ASP", "AMI", "STATIN", "GORTEX", "SEPT", "MAZE", "DISLAD", "DISCX", "DISRCA", "LMAIN", "SKEGRAFT", "MININV", "MI", "INO", "RENALINO", "LOS", "PACE", "OCVENDYS", "AFIB", "OCDVT", "OCPULMC", "SEIZURES", "TIA", "INFARM", "INFSEP", "SURVIVAL"}
+	var fix periopcheck.Fix
+	// For Binary Codes
+	for _, b := range binaryCodeArray {
+		switch periopcheck.CheckValidNumber(0, 2, rowSlice[b]) {
+		case 0:
+			continue
+		case 1:
+			fix = periopcheck.CantReadErrorHandler(rowNum, b, rowSlice)
+			fixArray = append(fixArray, fix)
+		case 2:
+			rowSlice[b] = "-9"
+		case 3:
+			fix = periopcheck.OutBoundsErrorHandler(rowNum, b, rowSlice)
+			fixArray = append(fixArray, fix)
+		}
+	}
+}
+
+//checkNonNegCodes checks if the code is negative
+func checkNonNegCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
 	nonNegativeArray := []string{"DAYSPOST", "ICUNUM", "ICU", "VENT", "CREAT", "AVSIZE", "MVSIZE", "TVSIZE", "PVSIZE", "CI", "MPAP", "SYSAVG", "LVEDP", "PVR", "MVGRADR", "AVAREA", "MVAREA", "AVXPLSIZE", "MVXPLSIZE", "TVXPLSIZE", "DISNUM", "GFTLAD", "GFTCX", "GFTRCA", "ACBNUM", "ORTIME", "PUMP", "CLAMP", "CIRARR", "HT", "WT", "REOPNUM", "CK", "CKMB", "PREHB", "POSTHB", "PACKCELLS"}
-	// nameArray := []string{"SURG", "ASSIST", "FDOC", "CDOC"}
-	var multiFieldArray []MultiField
+	//For non negative codes
+	for _, n := range nonNegativeArray {
+		if !periopcheck.CheckNonNegative(rowSlice[n]) {
+			fix = periopcheck.OutBoundsErrorHandler(rowNum, n, rowSlice)
+			fixArray = append(fixArray, fix)
+		}
+	}
+}
+
+//checkNonMultiCode checks all non-multi codes
+func checkNonMultiCode(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
 	var fieldArray []Field
+	var fix periopcheck.Fix
 	//DEMOGRAPHICS:
 	f := Field{"AREA", 0, 2}
 	fieldArray = append(fieldArray, f)
 	f = Field{"SEX", 0, 2}
 	fieldArray = append(fieldArray, f)
-
-	//DATES & DOCTORS:
-	if !periopcheck.CheckNonNegativeFloat(rowSlice["ICUTIME"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "ICUTIME", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
-	if !periopcheck.CheckNonNegativeFloat(rowSlice["VENTIME"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "VENTIME", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	//GENERAL PATIENT DATA :
 	f = Field{"TIMING", 1, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"FROM", 1, 5}
 	fieldArray = append(fieldArray, f)
-
-	//****************************************************************
-	//MultiField ACBREDO
-	multiField := MultiField{"ACBREDOP", 0, 1}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//MultiField AVREDO
-	multiField = MultiField{"AVREDOP", 0, 3}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//MultiField MVREDO
-	multiField = MultiField{"MVREDOP", 0, 3}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//MultiField TVREDO
-	multiField = MultiField{"TVREDOP", 0, 3}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//MultiField OTHEREDO
-	multiField = MultiField{"OTHEREDO", 0, 1}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//****************************************************************
 	//PREVIOUS (NON-SURGICAL) INTERVENTION:
 	f = Field{"PRECARD", 1, 2}
 	fieldArray = append(fieldArray, f)
-
 	//CLINICAL PRESENTATION:
 	f = Field{"ANGINA", 0, 3}
 	fieldArray = append(fieldArray, f)
@@ -399,26 +418,16 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"NYHA", 1, 4}
 	fieldArray = append(fieldArray, f)
-	if !periopcheck.CheckCCS(rowSlice["CCS"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "CCS", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"LVGRADE", 1, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"STRESS", 0, 2}
 	fieldArray = append(fieldArray, f)
-
 	//C.A.D. RISKS:
 	f = Field{"DOI", 0, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"SMOKE", 0, 2}
 	fieldArray = append(fieldArray, f)
-
 	//ASSOCIATED DISEASES:
-	if !periopcheck.CheckPVD(rowSlice["PVD"], rowSlice["CORATID"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "PVD", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"RF", 0, 2}
 	fieldArray = append(fieldArray, f)
 	f = Field{"CAROTID", 0, 2}
@@ -427,7 +436,6 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"RECG", 0, 2}
 	fieldArray = append(fieldArray, f)
-
 	//VALVE PATIENT DATA:
 	f = Field{"AVDIS", 0, 2}
 	fieldArray = append(fieldArray, f)
@@ -439,7 +447,6 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"TVDIS", 0, 3}
 	fieldArray = append(fieldArray, f)
-
 	//AORTIC VALVE SURGERY:
 	f = Field{"AVSURG", 0, 3}
 	fieldArray = append(fieldArray, f)
@@ -447,25 +454,12 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"ANNULEN", 0, 3}
 	fieldArray = append(fieldArray, f)
-
-	//MultiField AVPATH
-	multiField = MultiField{"AVPATH", 0, 8}
-	multiFieldArray = append(multiFieldArray, multiField)
-
-	if !periopcheck.CheckVPROS(rowSlice["AVPROS"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "AVPROS", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	//MITRAL VALVE SURGERY:
 	f = Field{"MVSURG", 0, 2}
 	fieldArray = append(fieldArray, f)
 	f = Field{"AREA", 0, 2}
 	fieldArray = append(fieldArray, f)
-
 	//MultiField MVPATH
-	multiField = MultiField{"MVPATH", 0, 7}
-	multiFieldArray = append(multiFieldArray, multiField)
-
 	f = Field{"MVANN", 0, 3}
 	fieldArray = append(fieldArray, f)
 	f = Field{"CHORD", 0, 2}
@@ -476,56 +470,22 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"CHORDAL", 0, 3}
 	fieldArray = append(fieldArray, f)
-
-	if !periopcheck.CheckVPROS(rowSlice["MVPROS"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "MVPROS", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	//TRICUSPID VALVE SURGERY:
 	f = Field{"TVSURG", 0, 3}
 	fieldArray = append(fieldArray, f)
-
-	//MultiField TVPATH
-	multiField = MultiField{"TVPATH", 0, 5}
-	multiFieldArray = append(multiFieldArray, multiField)
-
-	if !periopcheck.CheckVPROS(rowSlice["TVPROS"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "TVPROS", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	//PULMONARY VALVE SURGERY:
 	f = Field{"PVSURG", 0, 3}
 	fieldArray = append(fieldArray, f)
-
-	if !periopcheck.CheckVPROS(rowSlice["PVPROS"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "PVPROS", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	//EXPLANTED VALVES:
 	//AORTIC:
-	if !periopcheck.CheckVPROS(rowSlice["AVXPLTYPE"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "AVXPLTYPE", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"AVXPLTYPE", 0, 6}
 	fieldArray = append(fieldArray, f)
-
 	//MITRAL:
-	if !periopcheck.CheckVPROS(rowSlice["MVXPLTYPE"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "MVXPLTYPE", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"MVXPLTYPE", 0, 6}
 	fieldArray = append(fieldArray, f)
-
 	//TRICUSPID:
-	if !periopcheck.CheckVPROS(rowSlice["TVXPLTYPE"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "TVXPLTYPE", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"TVXPLPATH", 0, 6}
 	fieldArray = append(fieldArray, f)
-
 	//OTHER PROCEDURES/OPERATIONS:
 	f = Field{"LVA", 0, 3}
 	fieldArray = append(fieldArray, f)
@@ -543,10 +503,6 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"DEVICETYPE", 0, 5}
 	fieldArray = append(fieldArray, f)
-
-	//ACB PATIENT DATA:
-	//ALL BINARY OR NON negative
-
 	//ARTERIES BYPASSED:
 	f = Field{"LIMA", 0, 3}
 	fieldArray = append(fieldArray, f)
@@ -560,14 +516,9 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"OTHGFT", 0, 3}
 	fieldArray = append(fieldArray, f)
-
 	//GENERAL OPERATIVE DATA:
 	f = Field{"PUMPCASE", 0, 2}
 	fieldArray = append(fieldArray, f)
-	if !periopcheck.CheckNonNegativeFloat(rowSlice["BSA"]) {
-		fix = periopcheck.OutBoundsErrorHandler(rowNum, "BSA", rowSlice)
-		fixArray = append(fixArray, fix)
-	}
 	f = Field{"MYOPRO", 0, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"TECH", 0, 3}
@@ -578,17 +529,9 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"OFFPUMP", 0, 2}
 	fieldArray = append(fieldArray, f)
-
 	//COMPLICATIONS:
 	f = Field{"IABP", 0, 4}
 	fieldArray = append(fieldArray, f)
-	//MultiField REOP
-	multiField = MultiField{"REOP", 0, 7}
-	multiFieldArray = append(multiFieldArray, multiField)
-	//MultiField REOPPUMP
-	multiField = MultiField{"REOPPUMP", 0, 2}
-	multiFieldArray = append(multiFieldArray, multiField)
-
 	f = Field{"IECG", 0, 4}
 	fieldArray = append(fieldArray, f)
 	f = Field{"POSTRF", 0, 2}
@@ -603,29 +546,6 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 	fieldArray = append(fieldArray, f)
 	f = Field{"PROC", 1, 3}
 	fieldArray = append(fieldArray, f)
-	//END
-	// For Binary Codes
-	for _, b := range binaryCodeArray {
-		switch periopcheck.CheckValidNumber(0, 2, rowSlice[b]) {
-		case 0:
-			continue
-		case 1:
-			fix = periopcheck.CantReadErrorHandler(rowNum, b, rowSlice)
-			fixArray = append(fixArray, fix)
-		case 2:
-			rowSlice[b] = "-9"
-		case 3:
-			fix = periopcheck.OutBoundsErrorHandler(rowNum, b, rowSlice)
-			fixArray = append(fixArray, fix)
-		}
-	}
-	//For non negative codes
-	for _, n := range nonNegativeArray {
-		if !periopcheck.CheckNonNegative(rowSlice[n]) {
-			fix = periopcheck.OutBoundsErrorHandler(rowNum, n, rowSlice)
-			fixArray = append(fixArray, fix)
-		}
-	}
 	//For all other non-multi field codes
 	for i := range fieldArray {
 		switch periopcheck.CheckValidNumber(fieldArray[i].Min, fieldArray[i].Max, fieldArray[i].Name) {
@@ -642,11 +562,127 @@ func checkRow(rowSlice map[string]string, rowNum int) (map[string]string, []peri
 			fixArray = append(fixArray, fix)
 		}
 	}
+}
+
+//checkMultiCodes checks multi code and creates an array filled with fields with multi codes
+func checkMultiCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var multiFieldArray []MultiField
+	//MultiField ACBREDO
+	multiField := MultiField{"ACBREDOP", 0, 1}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField AVREDO
+	multiField = MultiField{"AVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField MVREDO
+	multiField = MultiField{"MVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField TVREDO
+	multiField = MultiField{"TVREDOP", 0, 3}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField OTHEREDO
+	multiField = MultiField{"OTHEREDO", 0, 1}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField AVPATH
+	multiField = MultiField{"AVPATH", 0, 8}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField MVPATH
+	multiField = MultiField{"MVPATH", 0, 7}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField TVPATH
+	multiField = MultiField{"TVPATH", 0, 5}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField REOP
+	multiField = MultiField{"REOP", 0, 7}
+	multiFieldArray = append(multiFieldArray, multiField)
+	//MultiField REOPPUMP
+	multiField = MultiField{"REOPPUMP", 0, 2}
+	multiFieldArray = append(multiFieldArray, multiField)
 	//For multi field codes
 	for _, f := range multiFieldArray {
 		combineMultiFields(f.Name, rowSlice, rowNum, f.Min, f.Max)
 	}
-	return rowSlice, fixArray
+}
+
+//checkNonNegFloats checks non-negative floats
+func checkNonNegFloats(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
+	//DATES & DOCTORS:
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["ICUTIME"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "ICUTIME", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["VENTIME"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "VENTIME", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+	//GENERAL OPERATIVE DATA:
+	if !periopcheck.CheckNonNegativeFloat(rowSlice["BSA"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "BSA", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+}
+
+//checkVPROSCodes checks if all the VPROS codes are valid
+func checkVPROSCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
+	//ASSOCIATED DISEASES:
+	if !periopcheck.CheckVPROS(rowSlice["AVPROS"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "AVPROS", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+
+	if !periopcheck.CheckVPROS(rowSlice["MVPROS"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "MVPROS", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+
+	if !periopcheck.CheckVPROS(rowSlice["TVPROS"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "TVPROS", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+
+	if !periopcheck.CheckVPROS(rowSlice["PVPROS"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "PVPROS", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+	//EXPLANTED VALVES:
+	//AORTIC:
+	if !periopcheck.CheckVPROS(rowSlice["AVXPLTYPE"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "AVXPLTYPE", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+
+	//MITRAL:
+	if !periopcheck.CheckVPROS(rowSlice["MVXPLTYPE"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "MVXPLTYPE", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+
+	//TRICUSPID:
+	if !periopcheck.CheckVPROS(rowSlice["TVXPLTYPE"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "TVXPLTYPE", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+}
+
+//checkCCSCodes checks if CCS code is valid
+func checkCCSCodes(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
+	//CLINICAL PRESENTATION:
+	if !periopcheck.CheckCCS(rowSlice["CCS"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "CCS", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
+}
+
+//checkPVDCode checks if PVD code is valid
+func checkPVDCode(fixArray []periopcheck.Fix, rowSlice map[string]string, rowNum int) {
+	var fix periopcheck.Fix
+	//ASSOCIATED DISEASES:
+	if !periopcheck.CheckPVD(rowSlice["PVD"], rowSlice["CORATID"]) {
+		fix = periopcheck.OutBoundsErrorHandler(rowNum, "PVD", rowSlice)
+		fixArray = append(fixArray, fix)
+	}
 }
 
 //combineMultiFields looks for field names containing a multifield and appends them to a slice of int
@@ -676,10 +712,14 @@ func combineMultiFields(fieldName string, rowSlice map[string]string, rowNum int
 }
 
 //uniformDates converts all dates to YYYY-MM-DD
-func uniformDates(rowSlice map[string]string, row int) map[string]string {
+func uniformDates(fixArray []periopcheck.Fix, rowSlice map[string]string, row int) map[string]string {
 	for value := range rowSlice {
 		value = strings.ToLower(value)
 		if strings.Contains(value, "date") {
+			if rowSlice[value] == "" {
+				rowSlice[value] = "null"
+
+			}
 			date := helper.CheckDateFormat(row, value, rowSlice[value])
 			rowSlice[value] = date
 		}

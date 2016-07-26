@@ -9,3 +9,7 @@ func TestWriteJSON(t *testing.T) {
 func TestPrintStructField(t *testing.T) {
 	printStructFields()
 }
+
+func TestPlayingWithReflect(t *testing.T) {
+	playingWithReflect()
+}
