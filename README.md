@@ -1,6 +1,11 @@
 # VR
-The Program looks to connect to MS Access, go through each sheet/table in the database and extract all the needed information then congregate them into a single sheet/table. This is currently being done by reading query results and writing them on to a text file to be re-read into the new/receiving databse.
 
-Built with Golang, SQL, MS Access
+## Echo and TED
+This program searches through xlsx files and checks whether they are an ECHO file or a TEDCODE file. If either is true then the program saves a copy of the xlsx file to a specified directory.
 
-**accessHelper and excelHelper packages are in access repo**
+##Peri
+This program reads an xlsx file, parses each row, and checks if they are valid cells. If so, the program iterates through a premade struct and assigns each cell to their corresponding struct field.
+
+##VR GoSQL
+This program connects to MS Access, goes through each sheet/table in the database and extract all the needed information then congregates them into a single sheet/table. 
+
