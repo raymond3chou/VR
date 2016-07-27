@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/access"
-	"github.com/access/excelHelper"
+	"github.com/raymond3chou/VR/accessHelper"
+	"github.com/raymond3chou/VR/excelHelper"
 )
 
 //TODO Check dates and handle fixes

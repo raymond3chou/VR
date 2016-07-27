@@ -30,6 +30,19 @@ func IdentifyCols(sheet *xlsx.File) []string {
 	return colNamesSlice
 }
 
+//ParseData reads the sheet and inserts the cell values into a map with the column name as the key
+func ParseData(sheet *xlsx.File) map[string]string {
+	rowSlice := make(map[string]string)
+	colLength := sheet.Sheets[0].MaxCol
+	rowLength := sheet.Sheets[0].MaxRow
+	for ri := 1; ri < rowLength; ri++ {
+		for ci := 0; ci < colLength; ci++ {
+			rowSlice[sheet.Sheets[0].Rows[0].Cells[ci].Value] = sheet.Sheets[0].Rows[ri].Cells[ci].Value
+		}
+	}
+	return rowSlice
+}
+
 //ColCompare identifies the common strings in the two string slices
 func ColCompare(tghCols []string, twhCols []string) []string {
 	var commonColsSlice []string

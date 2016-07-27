@@ -11,7 +11,6 @@ import (
 	"github.com/LynneXie1201/Read_From_Excel/helper"
 	"github.com/raymond3chou/VR/excelHelper"
 	"github.com/raymond3chou/VR/periopchecks"
-	"github.com/tealeg/xlsx"
 )
 
 //TODO VPROS combine into one array and add null when empty
@@ -302,8 +301,6 @@ func addToStruct(rowSlice map[string]string, newPeriOp PeriOp) PeriOp {
 		//if the field doesnt need to be skipped then check its type and insert value accordingly
 		if !constainsSkip {
 			if field.Type.Name() == "int64" {
-				valueInt := excelHelper.StringToInt(rowSlice[field.Name])
-				reflect.ValueOf(&newPeriOp).Elem().Field(i).SetInt(valueInt)
 
 			} else if field.Type.Name() == "string" {
 				valueStr := rowSlice[field.Name]
@@ -725,18 +722,6 @@ func uniformDates(fixArray []periopcheck.Fix, rowSlice map[string]string, row in
 		}
 	}
 	return rowSlice
-}
-
-//parseData reads the sheet and inserts the cell values into a map with the column name as the key
-func parseData(sheet *xlsx.File) {
-	rowSlice := make(map[string]string)
-	colLength := sheet.Sheets[0].MaxCol
-	rowLength := sheet.Sheets[0].MaxRow
-	for ri := 1; ri < rowLength; ri++ {
-		for ci := 0; ci < colLength; ci++ {
-			rowSlice[sheet.Sheets[0].Rows[0].Cells[ci].Value] = sheet.Sheets[0].Rows[ri].Cells[ci].Value
-		}
-	}
 }
 
 //attributes returns the name of the fields of a particular struct
