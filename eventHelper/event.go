@@ -8,12 +8,12 @@ import (
 
 //CutArray takes in a map of string and a slice of required fields
 //returns a map with only key's matching the required fields
-func CutArray(rowSlice map[string]string, reqFields []string) map[string]string {
+func CutArray(rowSlice map[string]string, reqFields map[string]string) map[string]string {
 	newRowSlice := make(map[string]string)
-	for _, rf := range reqFields {
+	for rf, fieldName := range reqFields {
 		for key := range rowSlice {
 			if rf == key {
-				newRowSlice[key] = rowSlice[key]
+				newRowSlice[fieldName] = rowSlice[key]
 				break
 			}
 		}
