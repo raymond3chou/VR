@@ -132,3 +132,28 @@ func StringToInt(s string) int64 {
 	}
 	return i
 }
+
+//SliceTrimSpace trims trailing and leading spaces from each string in the slice
+func SliceTrimSpace(s []string) []string {
+	for i, ss := range s {
+		s[i] = strings.TrimSpace(ss)
+	}
+	return s
+}
+
+//StringToFloat converts string to float64
+func StringToFloat(s string) float64 {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		log.Println(err)
+	}
+	return f
+}
+
+//DateConvertor converts a float64 to date
+func DateConvertor(f float64) string {
+	date := xlsx.TimeFromExcelTime(f, false)
+	dateSlice := strings.Split(date.String(), " ")
+	d := dateSlice[0]
+	return d
+}
