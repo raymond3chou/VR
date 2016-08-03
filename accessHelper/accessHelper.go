@@ -64,13 +64,13 @@ func ConvertToText(maincolumns []string, cols []OrderedMap, dbq string) string {
 	return row
 }
 
-//ConvertToOrderedMap converts a string array to an array of orderedMap
+//ConvertToOrderedMap assigns a string array to an array of orderedMap based on the key they correspond to
 func ConvertToOrderedMap(cols []OrderedMap, rowstring []string) []OrderedMap {
 	endindex := len(rowstring)
 	i := 0
-	for key := range cols {
+	for index := range cols {
 		if i < endindex {
-			cols[key].Value = rowstring[i]
+			cols[index].Value = rowstring[i]
 			i++
 		} else {
 			break
@@ -137,7 +137,7 @@ func CreateErrorLog(test bool) *os.File {
 	var path string
 	if test {
 		// path = "C:\\Users\\raymond chou\\Desktop\\ErrorLog.log"
-		path = "C:\\Users\\ext_hsc\\Desktop\\VR\\ErrorLog.log"
+		path = "F:\\DavidOp\\ErrorLog.log"
 
 	} else {
 		path = ReadPath("Error Log")

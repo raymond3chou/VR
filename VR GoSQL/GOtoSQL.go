@@ -165,9 +165,9 @@ func findDB(dir string) ([]string, []string, []string) {
 	return mdbnames, accdbnames, foldernames
 }
 
-//findTable iterates through all the tables in the database.
+//FindTable iterates through all the tables in the database.
 //Currently only works with .mdb. .accdb does not have permission.
-func findTable(conn *sql.DB) []string {
+func FindTable(conn *sql.DB) []string {
 	var tablenames []string
 
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
@@ -218,7 +218,7 @@ func connectExecute(dir string, dbnames []string) string {
 		}
 		//Originating Database isConnectedection established
 
-		tablenames := findTable(isConnected)
+		tablenames := FindTable(isConnected)
 		tablelength := len(tablenames)
 		log.Printf("%d Tables in %s\n", tablelength, dbname)
 
