@@ -137,7 +137,7 @@ func CreateErrorLog(test bool) *os.File {
 	var path string
 	if test {
 		// path = "C:\\Users\\raymond chou\\Desktop\\ErrorLog.log"
-		path = "F:\\DavidOp\\ErrorLog.log"
+		path = "C:\\Users\\raymond chou\\Desktop\\ErrorLog.log"
 
 	} else {
 		path = ReadPath("Error Log")

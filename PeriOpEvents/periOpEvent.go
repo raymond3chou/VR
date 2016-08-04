@@ -40,7 +40,6 @@ type MI struct {
 	PTID       string            `json:"ptid"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
-	Mi         int64             `json:"myocardial_infarction"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -54,7 +53,6 @@ type Pace struct {
 	PTID       string            `json:"ptid"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
-	PACE       int64             `json:"pacemaker"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -84,7 +82,6 @@ type Stroke struct {
 	PTID       string            `json:"ptid"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
-	STROKE     int64             `json:"stroke"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -98,8 +95,9 @@ type Survival struct {
 	PTID       string            `json:"ptid"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
-	Survival   int64             `json:"survival"`
-	Notes      string            `json:"notes"`
+	Reason     string            `json:"reason"`
+	PrmDeath   int64             `json:"prm_dth"`
+	Operative  int64             `json:"operative"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -137,7 +135,6 @@ func assignMI(rowSlice map[string]string, source Source, date string) MI {
 	mi.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
 	mi.Date = date
 	mi.DateEst = 0
-	mi.Mi = 1
 	mi.SOURCE = source
 	mi.FIX = f
 	return mi
@@ -152,7 +149,6 @@ func assignPace(rowSlice map[string]string, source Source, date string) Pace {
 	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
 	p.Date = date
 	p.DateEst = 0
-	p.PACE = 1
 	p.SOURCE = source
 	p.FIX = f
 	return p
@@ -184,7 +180,6 @@ func assignStroke(rowSlice map[string]string, source Source, date string) Stroke
 	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
 	p.Date = date
 	p.DateEst = 0
-	p.STROKE = 1
 	p.SOURCE = source
 	p.FIX = f
 	return p
@@ -194,13 +189,14 @@ func assignSurvival(rowSlice map[string]string, source Source, date string) Surv
 	var p Survival
 	var f []periopcheck.Fix
 
-	p.Type = "survival"
+	p.Type = "death"
 	p.PTID = rowSlice["PTID"]
 	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
 	p.Date = date
 	p.DateEst = 0
-	p.Survival = 0
-	p.Notes = rowSlice["NOTES"]
+	p.Reason = rowSlice["NOTES"]
+	p.PrmDeath = -9
+	p.Operative = 1
 	p.SOURCE = source
 	p.FIX = f
 	return p
