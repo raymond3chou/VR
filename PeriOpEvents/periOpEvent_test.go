@@ -48,12 +48,12 @@ func TestCheckRedo(t *testing.T) {
 	path := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TGH perioperative.xlsx"
 	file := excelHelper.ConnectToXlsx(path)
 	rowSlice := parseData(file, 1)
-	redo := checkRedo(rowSlice)
+	redo := checkRedo(rowSlice, 0)
 	if len(redo) != 0 {
 		t.Error("redo not empty")
 	}
 	rowSlice = parseData(file, 1087)
-	redo2 := checkRedo(rowSlice)
+	redo2 := checkRedo(rowSlice, 0)
 	if len(redo2) != 1 {
 		t.Error("redo is empty")
 	}

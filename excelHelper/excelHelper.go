@@ -125,7 +125,11 @@ func PeriOpLiteral(colNameSlice []string) {
 }
 
 //StringToInt converts string to int
-func StringToInt(s string) int64 {
+func StringToInt(s string, row int, col string) int64 {
+	if s == "" {
+		log.Printf("row %d and col %s contains a blank", row, col)
+		return -9
+	}
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		log.Fatalln(err)

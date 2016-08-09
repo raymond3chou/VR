@@ -96,7 +96,7 @@ type Survival struct {
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
 	Reason     string            `json:"reason"`
-	PrmDeath   int64             `json:"prm_dth"`
+	PrmDeath   int64             `json:"primary_cause"`
 	Operative  int64             `json:"operative"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
@@ -115,7 +115,7 @@ func assignOperation(rowSlice map[string]string, surg []string, source Source, d
 	eventOp.PTID = rowSlice["PTID"]
 	eventOp.MRN = ""
 	eventOp.ResearchID = ""
-	eventOp.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	eventOp.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	eventOp.Date = date
 	eventOp.DateEst = 0
 	eventOp.Surgeon = rowSlice["SURG"]
@@ -132,7 +132,7 @@ func assignMI(rowSlice map[string]string, source Source, date string) MI {
 
 	mi.Type = "myocardial infarction"
 	mi.PTID = rowSlice["PTID"]
-	mi.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	mi.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	mi.Date = date
 	mi.DateEst = 0
 	mi.SOURCE = source
@@ -144,9 +144,9 @@ func assignPace(rowSlice map[string]string, source Source, date string) Pace {
 	var p Pace
 	var f []periopcheck.Fix
 
-	p.Type = "pacemaker"
+	p.Type = "perm_pacemaker"
 	p.PTID = rowSlice["PTID"]
-	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	p.Date = date
 	p.DateEst = 0
 	p.SOURCE = source
@@ -158,9 +158,9 @@ func assignTIA(rowSlice map[string]string, source Source, date string) TIA {
 	var e TIA
 	var f []periopcheck.Fix
 
-	e.Type = "TIA"
+	e.Type = "tia"
 	e.PTID = rowSlice["PTID"]
-	e.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	e.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	e.Date = date
 	e.DateEst = 0
 	e.Outcome = 3
@@ -177,7 +177,7 @@ func assignStroke(rowSlice map[string]string, source Source, date string) Stroke
 
 	p.Type = "stroke"
 	p.PTID = rowSlice["PTID"]
-	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	p.Date = date
 	p.DateEst = 0
 	p.SOURCE = source
@@ -191,7 +191,7 @@ func assignSurvival(rowSlice map[string]string, source Source, date string) Surv
 
 	p.Type = "death"
 	p.PTID = rowSlice["PTID"]
-	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"])
+	p.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	p.Date = date
 	p.DateEst = 0
 	p.Reason = rowSlice["NOTES"]
@@ -235,12 +235,12 @@ func parseSurgeries(s string, redo []string) []string {
 	return sSlice
 }
 
-func checkRedo(rowSlice map[string]string) []string {
+func checkRedo(rowSlice map[string]string, row int) []string {
 	var redo []string
 	count := 0
 	for k := range rowSlice {
-		if strings.Contains(k, "REOP") {
-			if excelHelper.StringToInt(rowSlice[k]) == 6 {
+		if strings.Contains(k, "REOP") && !strings.Contains(k, "PUMP") {
+			if excelHelper.StringToInt(rowSlice[k], row, k) == 6 {
 				count++
 			}
 		}
@@ -277,34 +277,34 @@ func objectGenerator(sheet *xlsx.File, surgerieSheet *xlsx.File, tgh bool, jsonF
 			dStr := rowSlice["DATEOR"]
 			ptID := rowSlice["PTID"]
 			surgeries := findSurgeries(ptID, dStr, surgMap)
-			redo := checkRedo(rowSlice)
+			redo := checkRedo(rowSlice, ri)
 			surg := parseSurgeries(surgeries, redo)
 			d := excelHelper.StringToFloat(dStr)
 			date := excelHelper.DateConvertor(d)
 			eventOP := assignOperation(rowSlice, surg, source, date)
 			writeJSON(eventOP, jsonFile)
 
-			if excelHelper.StringToInt(rowSlice["MI"]) == 1 {
+			if excelHelper.StringToInt(rowSlice["MI"], ri, "MI") == 1 {
 				eventMI := assignMI(rowSlice, source, date)
 				writeJSON(eventMI, jsonFile)
 			}
 
-			if excelHelper.StringToInt(rowSlice["PACE"]) == 1 {
+			if excelHelper.StringToInt(rowSlice["PACE"], ri, "PACE") == 1 {
 				eventPace := assignPace(rowSlice, source, date)
 				writeJSON(eventPace, jsonFile)
 			}
 
-			if excelHelper.StringToInt(rowSlice["TIA"]) == 1 {
+			if excelHelper.StringToInt(rowSlice["TIA"], ri, "TIA") == 1 {
 				eventTIA := assignTIA(rowSlice, source, date)
 				writeJSON(eventTIA, jsonFile)
 			}
 
-			if excelHelper.StringToInt(rowSlice["STROKE"]) == 1 {
+			if excelHelper.StringToInt(rowSlice["STROKE"], ri, "STROKE") == 1 {
 				eventStroke := assignStroke(rowSlice, source, date)
 				writeJSON(eventStroke, jsonFile)
 			}
 
-			if excelHelper.StringToInt(rowSlice["STROKE"]) == 0 {
+			if excelHelper.StringToInt(rowSlice["SURVIVAL"], ri, "SURVIVAL") == 0 {
 				eventSurvival := assignSurvival(rowSlice, source, date)
 				writeJSON(eventSurvival, jsonFile)
 			}
@@ -331,16 +331,26 @@ func writeJSON(newEvent interface{}, jsonFile *os.File) {
 }
 
 func main() {
-	jsonPath := ""
+	jsonPath := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\periOpEvents.json"
 	accessHelper.CreateFile(jsonPath)
 	jsonFile, _ := accessHelper.ConnectToTxt(jsonPath)
+	defer jsonFile.Close()
 
-	surgeryPath := ""
+	surgeryPath := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\surgeries.xlsx"
 	sFile := excelHelper.ConnectToXlsx(surgeryPath)
 
-	tghPath := ""
+	tghPath := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TGH perioperative.xlsx"
 	tghSource := sourceGenerator(tghPath)
 
 	tghFile := excelHelper.ConnectToXlsx(tghPath)
 	objectGenerator(tghFile, sFile, true, jsonFile, tghSource)
+
+	surgeryPath = "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TWH surgeries.xlsx"
+	sFile = excelHelper.ConnectToXlsx(surgeryPath)
+
+	twhPath := "L:\\CVDMC Students\\Raymond Chou\\perioperative\\TWH perioperative.xlsx"
+	twhSource := sourceGenerator(twhPath)
+
+	twhFile := excelHelper.ConnectToXlsx(twhPath)
+	objectGenerator(twhFile, sFile, true, jsonFile, twhSource)
 }

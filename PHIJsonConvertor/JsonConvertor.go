@@ -87,19 +87,19 @@ func iteratePTID(path string, fields []string) {
 	pList := ptidList(conn)
 	query := queryGenerator(fields)
 
-	jsonPath := "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\JSON\\email.json"
+	jsonPath := "C:\\Users\\raymond chou\\Desktop\\JSON\\email.json"
 	emailJSONFile, _ := accessHelper.ConnectToTxt(jsonPath)
 	defer emailJSONFile.Close()
-	jsonPath = "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\JSON\\phone.json"
+	jsonPath = "C:\\Users\\raymond chou\\Desktop\\JSON\\phone.json"
 	phoneJSONFile, _ := accessHelper.ConnectToTxt(jsonPath)
 	defer phoneJSONFile.Close()
-	jsonPath = "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\JSON\\address.json"
+	jsonPath = "C:\\Users\\raymond chou\\Desktop\\JSON\\address.json"
 	addressJSONFile, _ := accessHelper.ConnectToTxt(jsonPath)
 	defer addressJSONFile.Close()
-	jsonPath = "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\JSON\\GP.json"
+	jsonPath = "C:\\Users\\raymond chou\\Desktop\\JSON\\GP.json"
 	GPJSONFile, _ := accessHelper.ConnectToTxt(jsonPath)
 	defer GPJSONFile.Close()
-	jsonPath = "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\JSON\\cardio.json"
+	jsonPath = "C:\\Users\\raymond chou\\Desktop\\JSON\\cardio.json"
 	cardioJSONFile, _ := accessHelper.ConnectToTxt(jsonPath)
 
 	for _, p := range pList {

@@ -136,8 +136,8 @@ func CheckNonNegativeFloat(input string) bool {
 
 //CheckPVD checks if PVD defaults to 1 when CORATID is >0
 func CheckPVD(pvd string, coratID string) bool {
-	p := excelHelper.StringToInt(pvd)
-	c := excelHelper.StringToInt(coratID)
+	p := excelHelper.StringToInt(pvd, 0, "")
+	c := excelHelper.StringToInt(coratID, 0, "")
 	if c > 0 && p == 1 {
 		return true
 	}
