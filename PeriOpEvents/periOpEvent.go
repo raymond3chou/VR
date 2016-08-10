@@ -19,7 +19,7 @@ type Operation struct {
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
 	Surgeon    string            `json:"surgeon"`
@@ -37,9 +37,23 @@ type MI struct {
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
+	SOURCE     Source            `json:"source"`
+	FIX        []periopcheck.Fix `json:"fix"`
+}
+
+//Reop return to or
+type Reop struct {
+	Type       string            `json:"type"`
+	MRN        string            `json:"mrn"`
+	ResearchID string            `json:"research_id"`
+	PeriOpID   int64             `json:"periop_id"`
+	PTID       string            `json:"patient_id"`
+	Date       string            `json:"date"`
+	DateEst    int64             `json:"date_est"`
+	REOP       int64             `json:"code"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -50,26 +64,25 @@ type Pace struct {
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
 
-//TIA is the event for a Transient ischemic attack
-type TIA struct {
+//Tia is the event for a Transient ischemic attack
+type Tia struct {
 	Type       string            `json:"type"`
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
-	Outcome    int64             `json:"Outcome"`
-	Agents     int64             `json:"Agents"`
-	When       int64             `json:"When"`
-	SOURCE     Source            `json:"Source"`
+	Outcome    int64             `json:"outcome"`
+	Agents     int64             `json:"anti_agents"`
+	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
 
@@ -79,9 +92,12 @@ type Stroke struct {
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
+	Outcome    int64             `json:"outcome"`
+	Agents     int64             `json:"anti_agents"`
+	When       int64             `json:"when"`
 	SOURCE     Source            `json:"source"`
 	FIX        []periopcheck.Fix `json:"fix"`
 }
@@ -92,7 +108,7 @@ type Survival struct {
 	MRN        string            `json:"mrn"`
 	ResearchID string            `json:"research_id"`
 	PeriOpID   int64             `json:"periop_id"`
-	PTID       string            `json:"ptid"`
+	PTID       string            `json:"patient_id"`
 	Date       string            `json:"date"`
 	DateEst    int64             `json:"date_est"`
 	Reason     string            `json:"reason"`
@@ -119,7 +135,9 @@ func assignOperation(rowSlice map[string]string, surg []string, source Source, d
 	eventOp.Date = date
 	eventOp.DateEst = 0
 	eventOp.Surgeon = rowSlice["SURG"]
-	eventOp.Surgeries = surg
+	if surg[0] != "" {
+		eventOp.Surgeries = surg
+	}
 
 	eventOp.SOURCE = source
 	eventOp.FIX = f
@@ -130,7 +148,7 @@ func assignMI(rowSlice map[string]string, source Source, date string) MI {
 	var mi MI
 	var f []periopcheck.Fix
 
-	mi.Type = "myocardial infarction"
+	mi.Type = "myocardial_infarction"
 	mi.PTID = rowSlice["PTID"]
 	mi.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	mi.Date = date
@@ -154,8 +172,8 @@ func assignPace(rowSlice map[string]string, source Source, date string) Pace {
 	return p
 }
 
-func assignTIA(rowSlice map[string]string, source Source, date string) TIA {
-	var e TIA
+func assignTIA(rowSlice map[string]string, source Source, date string) Tia {
+	var e Tia
 	var f []periopcheck.Fix
 
 	e.Type = "tia"
@@ -163,10 +181,24 @@ func assignTIA(rowSlice map[string]string, source Source, date string) TIA {
 	e.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
 	e.Date = date
 	e.DateEst = 0
-	e.Outcome = 3
-	e.Agents = 8
-	e.When = 1
 	e.SOURCE = source
+	e.Outcome = 3
+	e.Agents = 2
+	e.FIX = f
+	return e
+}
+
+func assignREOP(rowSlice map[string]string, source Source, date string, reop string) Reop {
+	var e Reop
+	var f []periopcheck.Fix
+
+	e.Type = "return_to_or"
+	e.PTID = rowSlice["PTID"]
+	e.PeriOpID = excelHelper.StringToInt(rowSlice["ID"], 0, "ID")
+	e.Date = date
+	e.DateEst = 0
+	e.SOURCE = source
+	e.REOP = excelHelper.StringToInt(rowSlice[reop], 0, "REOP")
 	e.FIX = f
 	return e
 }
@@ -181,6 +213,9 @@ func assignStroke(rowSlice map[string]string, source Source, date string) Stroke
 	p.Date = date
 	p.DateEst = 0
 	p.SOURCE = source
+	p.Outcome = 3
+	p.Agents = 8
+	p.When = 1
 	p.FIX = f
 	return p
 }
@@ -292,6 +327,15 @@ func objectGenerator(sheet *xlsx.File, surgerieSheet *xlsx.File, tgh bool, jsonF
 			if excelHelper.StringToInt(rowSlice["PACE"], ri, "PACE") == 1 {
 				eventPace := assignPace(rowSlice, source, date)
 				writeJSON(eventPace, jsonFile)
+			}
+			for k := range rowSlice {
+				if strings.Contains(k, "REOP") && !strings.Contains(k, "PUMP") && !strings.Contains(k, "NUM") {
+					reop := excelHelper.StringToInt(rowSlice[k], ri, k)
+					if reop != 6 && reop != -9 && reop != 0 && reop != 9 {
+						eventREOP := assignREOP(rowSlice, source, date, k)
+						writeJSON(eventREOP, jsonFile)
+					}
+				}
 			}
 
 			if excelHelper.StringToInt(rowSlice["TIA"], ri, "TIA") == 1 {
