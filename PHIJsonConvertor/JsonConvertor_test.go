@@ -10,7 +10,7 @@ func TestConnectToDB(t *testing.T) {
 func TestQueryGenerator(t *testing.T) {
 	fields := []string{"A", "B d", "C"}
 	q := queryGenerator(fields)
-	if q != "SELECT [A],[B d],[C] FROM [AV Sparing 2013 FU] WHERE PTID=?" {
+	if q != "SELECT [A],[B d],[C] FROM [Contact] WHERE PTID=?" {
 		t.Errorf("The Printed Query was %s", q)
 	}
 }
@@ -19,7 +19,7 @@ func TestQueryTable(t *testing.T) {
 	path := "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\TestDB.accdb"
 	conn := connectToDB(path)
 	defer conn.Close()
-	query := "SELECT [PTID],[CHART] FROM [AV Sparing 2013 FU] WHERE PTID=?"
+	query := "SELECT [PTID],[CHART] FROM [Contact] WHERE PTID=?"
 	ptid := "Test"
 	orderedMapSlice := queryTable(conn, query, ptid)
 	if orderedMapSlice[0][0].Value != "Test" {
@@ -41,6 +41,6 @@ func TestIteratePTID(t *testing.T) {
 
 	path := "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\TestDB.accdb"
 	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE"}
-	iteratePTID(path, fields)
+	iteratePTID(path, fields, "C:\\Users\\raymond chou\\Desktop\\JSON")
 
 }
