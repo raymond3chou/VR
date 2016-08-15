@@ -133,15 +133,7 @@ func ReadPath(typeofpath string) string {
 }
 
 //CreateErrorLog gets the path and creates the error file
-func CreateErrorLog(test bool) *os.File {
-	var path string
-	if test {
-		// path = "C:\\Users\\raymond chou\\Desktop\\ErrorLog.log"
-		path = "C:\\Users\\ext_hsc\\Desktop\\jsonError.log"
-
-	} else {
-		path = ReadPath("Error Log")
-	}
+func CreateErrorLog(path string) *os.File {
 	CreateFile(path)
 	errFile, err := ConnectToTxt(path)
 	if !err {

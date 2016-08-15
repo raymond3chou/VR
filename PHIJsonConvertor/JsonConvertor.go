@@ -36,7 +36,6 @@ type Patient struct {
 	PTID       string `json:"ptid"`
 	MRN        string `json:"mrn"`
 	ResearchID string `json:"research_id"`
-	Date       string `json:"date_of_operation"`
 	Lname      string `json:"last_name"`
 	Fname      string `json:"first_name"`
 	Sex        int64  `json:"sex"`
@@ -48,7 +47,7 @@ type Email struct {
 	MRN        string `json:"mrn"`
 	ResearchID string `json:"research_id"`
 	Email      string `json:"email"`
-	Date       string `json:"followup_date"`
+	Date       string `json:"date"`
 }
 
 //Phone struct for each unique work or home phone
@@ -58,7 +57,7 @@ type Phone struct {
 	MRN        string `json:"mrn"`
 	ResearchID string `json:"research_id"`
 	PhoneNum   string `json:"phone_number"`
-	Date       string `json:"FU_Date"`
+	Date       string `json:"date"`
 }
 
 //Address unique address take date,PTID,mrn,research_id
@@ -70,7 +69,7 @@ type Address struct {
 	City       string `json:"city"`
 	Province   string `json:"province"`
 	PostCode   string `json:"postal_code"`
-	Date       string `json:"FU_Date"`
+	Date       string `json:"date"`
 }
 
 //Cardio for each unique cardiologist  take date,PTID,mrn,research_id
@@ -79,7 +78,7 @@ type Cardio struct {
 	MRN        string `json:"mrn"`
 	ResearchID string `json:"research_id"`
 	Cardio     string `json:"cardiologist"`
-	Date       string `json:"FU_Date"`
+	Date       string `json:"date"`
 }
 
 //GP struct for each unique GP
@@ -88,7 +87,7 @@ type GP struct {
 	MRN        string `json:"mrn"`
 	ResearchID string `json:"research_id"`
 	GP         string `json:"general_practitioner"`
-	Date       string `json:"FU_Date"`
+	Date       string `json:"date"`
 }
 
 //for each unique GP take date,PTID,mrn,research_id
@@ -316,9 +315,6 @@ func toPatient(pS []accessHelper.OrderedMap) Patient {
 		if pS[i].Colname == "CHART" {
 			p.MRN = pS[i].Value
 		}
-		if pS[i].Colname == "DATEOR" {
-			p.Date = pS[i].Value
-		}
 		if pS[i].Colname == "LNAME" {
 			p.Lname = pS[i].Value
 		}
@@ -446,13 +442,13 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 	var objects []Object
 
 	for i := 0; i < len(oMS); i++ {
-		validField := 0
+		validField := ""
 		fieldValue = []string{}
 		for j := 0; j < len(oMS[i]); j++ {
 			if oMS[i][j].Colname == "STREET" {
 				if oMS[i][j].Value != "" {
 					fieldValue = append(fieldValue, oMS[i][j].Value)
-					validField++
+					validField += "a"
 				} else {
 					fieldValue = append(fieldValue, " ")
 				}
@@ -460,7 +456,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 			if oMS[i][j].Colname == "CITY" {
 				if oMS[i][j].Value != "" {
 					fieldValue = append(fieldValue, oMS[i][j].Value)
-					validField++
+					validField += "b"
 				} else {
 					fieldValue = append(fieldValue, " ")
 				}
@@ -468,7 +464,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 			if oMS[i][j].Colname == "PROVINCE" {
 				if oMS[i][j].Value != "" {
 					fieldValue = append(fieldValue, oMS[i][j].Value)
-					validField++
+					validField += "c"
 				} else {
 					fieldValue = append(fieldValue, " ")
 				}
@@ -476,7 +472,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 			if oMS[i][j].Colname == "POSTCODE" {
 				if oMS[i][j].Value != "" {
 					fieldValue = append(fieldValue, oMS[i][j].Value)
-					validField++
+					validField += "d"
 				} else {
 					fieldValue = append(fieldValue, " ")
 				}
@@ -485,7 +481,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 				date = oMS[i][j].Value
 			}
 		}
-		if validField > 0 {
+		if validField != "" {
 			var fieldString string
 			for _, f := range fieldValue {
 				fieldString += f + "_"
@@ -582,7 +578,7 @@ func writeJSON(newEvent interface{}, jsonFile *os.File) {
 }
 
 func main() {
-	errFile := accessHelper.CreateErrorLog(true)
+	errFile := accessHelper.CreateErrorLog("C:\\Users\\ext_hsc\\Desktop\\jsonError.log")
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	path := "C:\\Users\\ext_hsc\\Documents\\valve_registry_PHI\\ContactInfo.accdb"

@@ -126,7 +126,8 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string, dbq string) (in
 		rowstring := accessHelper.ConvertToString(vals)
 		cols := accessHelper.ConvertToOrderedMap(colsOMap, rowstring)
 		row := accessHelper.ConvertToText(maincolumns, cols, dbq)
-		inserted += accessHelper.FileWrite(file, row)
+		rowWithPath := row + "|" + dbq + "/" + tablename
+		inserted += accessHelper.FileWrite(file, rowWithPath)
 	}
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
@@ -167,7 +168,7 @@ func findDB(dir string) ([]string, []string, []string) {
 
 //FindTable iterates through all the tables in the database.
 //Currently only works with .mdb. .accdb does not have permission.
-func FindTable(conn *sql.DB) []string {
+func findTable(conn *sql.DB) []string {
 	var tablenames []string
 
 	rows, err := conn.Query("SELECT Name FROM MSysObjects WHERE Type=1 AND Flags=0;")
@@ -218,7 +219,7 @@ func connectExecute(dir string, dbnames []string) string {
 		}
 		//Originating Database isConnectedection established
 
-		tablenames := FindTable(isConnected)
+		tablenames := findTable(isConnected)
 		tablelength := len(tablenames)
 		log.Printf("%d Tables in %s\n", tablelength, dbname)
 
@@ -292,7 +293,7 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
-	errFile := accessHelper.CreateErrorLog(true)
+	errFile := accessHelper.CreateErrorLog("C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\goSql\\error.log")
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	// dir := "./"

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	_ "github.com/alexbrainman/odbc"
-
 	"github.com/raymond3chou/VR/accessHelper"
 )
 
@@ -38,22 +37,25 @@ func TestCreateErrorLog(t *testing.T) {
 }
 
 func TestCheckFollowup(t *testing.T) {
+	fileErr := accessHelper.CreateErrorLog("C:\\Users\\raymond chou\\Desktop\\TestError.log")
+	log.SetOutput(fileErr)
+	defer fileErr.Close()
 	actualqueryforT1 := " [PTID], [CHART], [SEX], [STREET], [POSTCODE]"
-	actualqueryforCopy := " [CHART], [SEX], [STREET], [PTID], [POSTCODE]"
-	tableArray := []string{"ContactInfo3", "Table1", "Copy Of Table1"}
-	conn := connectToDB("./Example", "TestDb.accdb")
+	tableArray := []string{"Contact Info", "Table1"}
+	conn := connectToDB("C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\goSql\\Example", "TestDb.mdb")
 	defer conn.Close()
+	conn.Ping()
 	for _, tablename := range tableArray {
 		FU, _, query := checkFollowup(conn, tablename)
-		if tablename == "ContactInfo3" && FU == true {
+		if tablename == "Contact Info" && FU == true {
 			t.Errorf("%s is not a Follow up table but function returns that it is", tablename)
 		}
 		if tablename == "Table1" && query != actualqueryforT1 {
 			t.Errorf("Actual Query for %s was %s not %s", tablename, query, actualqueryforT1)
 		}
-		if tablename == "Copy of Table1" && query != actualqueryforCopy {
-			t.Errorf("Actual Query for %s was %s not %s", tablename, query, actualqueryforCopy)
-		}
+		// if tablename == "Copy of Table1" && query != actualqueryforCopy {
+		// 	t.Errorf("Actual Query for %s was %s not %s", tablename, query, actualqueryforCopy)
+		// }
 	}
 }
 
@@ -106,7 +108,7 @@ func TestConvertToOrderedMap(t *testing.T) {
 }
 
 func TestFileWrite(t *testing.T) {
-	fileErr := accessHelper.CreateErrorLog(true)
+	fileErr := accessHelper.CreateErrorLog("C:\\Users\\raymond chou\\Desktop\\TestError.log")
 	log.SetOutput(fileErr)
 	defer fileErr.Close()
 
@@ -128,7 +130,7 @@ func TestFileWrite(t *testing.T) {
 }
 
 func TestSelectAccess(t *testing.T) {
-	fileErr := accessHelper.CreateErrorLog(true)
+	fileErr := accessHelper.CreateErrorLog("C:\\Users\\raymond chou\\Desktop\\TestError.log")
 	log.SetOutput(fileErr)
 	defer fileErr.Close()
 	//create file
