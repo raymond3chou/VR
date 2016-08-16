@@ -16,6 +16,7 @@ import (
 type Object struct {
 	Field string
 	Date  string
+	Path  []string
 }
 
 //PDate to keep track of patient dates
@@ -29,6 +30,13 @@ type Basic struct {
 	PTID       string
 	MRN        string
 	ResearchID string
+	Source     Source
+}
+
+//Source shows the path from which the object came from
+type Source struct {
+	Type string   `json:"type"`
+	Path []string `json:"path"`
 }
 
 //Patient email, phone, address, personal info, cardio, GP
@@ -39,6 +47,7 @@ type Patient struct {
 	Lname      string `json:"last_name"`
 	Fname      string `json:"first_name"`
 	Sex        int64  `json:"sex"`
+	SOURCE     Source `json:"source"`
 }
 
 //Email for each unique email take date, ptid,mrn,research_id
@@ -48,6 +57,7 @@ type Email struct {
 	ResearchID string `json:"research_id"`
 	Email      string `json:"email"`
 	Date       string `json:"date"`
+	SOURCE     Source `json:"source"`
 }
 
 //Phone struct for each unique work or home phone
@@ -58,6 +68,7 @@ type Phone struct {
 	ResearchID string `json:"research_id"`
 	PhoneNum   string `json:"phone_number"`
 	Date       string `json:"date"`
+	SOURCE     Source `json:"source"`
 }
 
 //Address unique address take date,PTID,mrn,research_id
@@ -70,6 +81,7 @@ type Address struct {
 	Province   string `json:"province"`
 	PostCode   string `json:"postal_code"`
 	Date       string `json:"date"`
+	SOURCE     Source `json:"source"`
 }
 
 //Cardio for each unique cardiologist  take date,PTID,mrn,research_id
@@ -79,6 +91,7 @@ type Cardio struct {
 	ResearchID string `json:"research_id"`
 	Cardio     string `json:"cardiologist"`
 	Date       string `json:"date"`
+	SOURCE     Source `json:"source"`
 }
 
 //GP struct for each unique GP
@@ -88,6 +101,7 @@ type GP struct {
 	ResearchID string `json:"research_id"`
 	GP         string `json:"general_practitioner"`
 	Date       string `json:"date"`
+	SOURCE     Source `json:"source"`
 }
 
 //for each unique GP take date,PTID,mrn,research_id
@@ -132,12 +146,20 @@ func iteratePTID(path string, fields []string, fldr string) {
 	for _, p := range pList {
 		ptidInfoSlice := queryTable(conn, query, p)
 		patientInfoSlice := queryTable(conn, "SELECT PTID,DATEOR,LNAME,FNAME,CHART,SEX FROM VR WHERE PTID=?", p)
+		vrInfoSlice := queryTable(conn, "SELECT PTID,DATEOR,LNAME,FNAME,CHART,SEX,EMAIL,PHONEHOME,PHONEWORK,GP1,GP2,CARDIO1,CARDIO2,STREET,CITY,PROVINCE,POSTCODE FROM VR WHERE PTID=?", p)
+		createJSON(ptidInfoSlice, emailJSONFile, phoneJSONFile, addressJSONFile, GPJSONFile, cardioJSONFile)
+
 		if len(patientInfoSlice) == 0 {
 			log.Printf("%s %s returned an empty query", "SELECT PTID,DATEOR,LNAME,FNAME,CHART,SEX FROM VR WHERE PTID=", p)
 			continue
 		}
+		if len(vrInfoSlice) == 0 {
+			log.Printf("%s %s returned an empty query", "SELECT PTID,DATEOR,LNAME,FNAME,CHART,SEX, EMAIL, PHONEHOME, PHONEWORK, GP1, GP2, CARDIO1, CARDIO2, STREET, CITY, PROVINCE, POSTCODE FROM VR WHERE PTID=", p)
+			continue
+		}
 		createPatientJSON(patientInfoSlice, patientJSONFile)
-		createJSON(ptidInfoSlice, emailJSONFile, phoneJSONFile, addressJSONFile, GPJSONFile, cardioJSONFile)
+		createJSON(vrInfoSlice, emailJSONFile, phoneJSONFile, addressJSONFile, GPJSONFile, cardioJSONFile)
+
 	}
 	conn.Close()
 }
@@ -187,6 +209,8 @@ func queryGenerator(fields []string) string {
 func queryTable(conn *sql.DB, query string, ptid string) [][]accessHelper.OrderedMap {
 	rows, err := conn.Query(query, ptid)
 	if err != nil {
+		log.Println(err)
+
 		log.Fatalf("Query: %s failed to run\n", query)
 	}
 	defer rows.Close()
@@ -234,6 +258,7 @@ func compareObjects(objects []Object) int {
 	for i := 0; i < len(objects); i++ {
 		for j := i + 1; j < len(objects); j++ {
 			if j != i && objects[i].Field == objects[j].Field {
+				// if compareDates(objects[i].Date, objects[j].Date) {
 				if compareDates(objects[i].Date, objects[j].Date) {
 					return j
 				}
@@ -387,7 +412,12 @@ func getBasic(oMS [][]accessHelper.OrderedMap) Basic {
 				if oMS[i][j].Value != "" {
 					b.MRN = oMS[i][j].Value
 				}
-
+			}
+			if oMS[i][j].Colname == "PATH" {
+				if oMS[i][j].Value != "" {
+					b.Source.Path = append(b.Source.Path, oMS[i][j].Value)
+					b.Source.Type = "followupVR"
+				}
 			}
 		}
 	}
@@ -405,9 +435,11 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
 	var fieldValue string
 	var date string
 	var objects []Object
+	var path []string
+	validField := false
 
 	for i := 0; i < len(oMS); i++ {
-		validField := false
+		validField = false
 		for j := 0; j < len(oMS[i]); j++ {
 			if oMS[i][j].Colname == field {
 				if oMS[i][j].Value != "" {
@@ -418,16 +450,31 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
 			if checkDate(oMS[i][j].Colname, "FU_D") {
 				date = oMS[i][j].Value
 			}
+			if checkDate(oMS[i][j].Colname, "PATH") {
+				path = append(path, oMS[i][j].Value)
+			}
 		}
+		if validField && date == "" {
+			for i := 0; i < len(oMS); i++ {
+				for j := 0; j < len(oMS[i]); j++ {
+					if oMS[i][j].Colname == "LKA_D" {
+						date = oMS[i][j].Value
+					}
+				}
+			}
+		}
+
 		if validField {
-			o := Object{fieldValue, date}
+			o := Object{fieldValue, date, path}
 			objects = append(objects, o)
 		}
 	}
+
 	duplicates := 0
 	for true {
 		duplicates = compareObjects(objects)
 		if duplicates != -1 {
+			objects[duplicates].Path = append(objects[duplicates].Path, objects[duplicates].Path...)
 			objects = append(objects[:duplicates], objects[duplicates+1:]...)
 		} else {
 			break
@@ -440,6 +487,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 	var fieldValue []string
 	var date string
 	var objects []Object
+	var path []string
 
 	for i := 0; i < len(oMS); i++ {
 		validField := ""
@@ -480,6 +528,9 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 			if checkDate(oMS[i][j].Colname, "FU_D") {
 				date = oMS[i][j].Value
 			}
+			if checkDate(oMS[i][j].Colname, "PATH") {
+				path = append(path, oMS[i][j].Value)
+			}
 		}
 		if validField != "" {
 			var fieldString string
@@ -487,7 +538,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 				fieldString += f + "_"
 			}
 			fieldString = strings.TrimSuffix(fieldString, "_")
-			o := Object{fieldString, date}
+			o := Object{fieldString, date, path}
 			objects = append(objects, o)
 		}
 	}
@@ -507,6 +558,8 @@ func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool) {
 	var e Phone
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
+	e.SOURCE = basic.Source
+
 	if home {
 		e.Type = "home"
 	} else {
@@ -523,6 +576,8 @@ func createGP(gps []Object, basic Basic, jsonFile *os.File) {
 	var e GP
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
+	e.SOURCE = basic.Source
+
 	for i := range gps {
 		e.GP = gps[i].Field
 		e.Date = gps[i].Date
@@ -534,6 +589,7 @@ func createCardio(cardio []Object, basic Basic, jsonFile *os.File) {
 	var e Cardio
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
+	e.SOURCE = basic.Source
 	for i := range cardio {
 		e.Cardio = cardio[i].Field
 		e.Date = cardio[i].Date
@@ -545,6 +601,8 @@ func createEmail(emails []Object, basic Basic, jsonFile *os.File) {
 	var e Email
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
+	e.SOURCE = basic.Source
+
 	for i := range emails {
 		e.Email = emails[i].Field
 		e.Date = emails[i].Date
@@ -556,6 +614,8 @@ func createAddress(addr []Object, basic Basic, jsonFile *os.File) {
 	var e Address
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
+	e.SOURCE = basic.Source
+
 	for i := range addr {
 		a := strings.Split(addr[i].Field, "_")
 		e.Street = a[0]
@@ -582,7 +642,7 @@ func main() {
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	path := "C:\\Users\\ext_hsc\\Documents\\valve_registry_PHI\\ContactInfo.accdb"
-	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE"}
+	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE", "PATH", "LKA_D"}
 	fldr := "C:\\Users\\ext_hsc\\Desktop\\JSON"
 	iteratePTID(path, fields, fldr)
 

@@ -26,7 +26,7 @@ var (
 //If no column names are present then it returns an empty query
 func checkFollowup(conn *sql.DB, tablename string) (bool, []string, string) {
 	followup := false
-	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB", "CARDIO1", "CARDIO2", "GP1", "GP2", "FU_D"}
+	maincolumns := []string{"PTID", "CHART", "LNAME", "FNAME", "SEX", "AGE", "STREET", "CITY", "PROVINCE", "POSTCODE", "PHONEHOME", "PHONEWORK", "PHONECELL", "EMAIL", "DOB", "CARDIO1", "CARDIO2", "GP1", "GP2", "FU_D", "LKA_D"}
 	var query string
 	//Attempts to Run the Query
 	rows, err := conn.Query("SELECT * FROM [" + tablename + "]")
@@ -125,9 +125,9 @@ func selectAccess(conn *sql.DB, file *os.File, tablename string, dbq string) (in
 		numberofRows++
 		rowstring := accessHelper.ConvertToString(vals)
 		cols := accessHelper.ConvertToOrderedMap(colsOMap, rowstring)
-		row := accessHelper.ConvertToText(maincolumns, cols, dbq)
-		rowWithPath := row + "|" + dbq + "/" + tablename
-		inserted += accessHelper.FileWrite(file, rowWithPath)
+		dbqN := strings.TrimPrefix(dbq, "C:\\Users\\ext_hsc\\Documents\\valve_registry_working_copy")
+		row := accessHelper.ConvertToText(maincolumns, cols, dbqN+"\\"+tablename)
+		inserted += accessHelper.FileWrite(file, row)
 	}
 	//iterate through each row of the executed Query from Originating DB
 	err = rows.Err()
@@ -293,7 +293,7 @@ func printDirInfo(mdbnames []string, accdbnames []string, foldernames []string, 
 }
 
 func main() {
-	errFile := accessHelper.CreateErrorLog("C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\goSql\\error.log")
+	errFile := accessHelper.CreateErrorLog("C:\\Users\\ext_hsc\\Desktop\\VR\\ErrorLog.log")
 	log.SetOutput(errFile)
 	defer errFile.Close()
 	// dir := "./"

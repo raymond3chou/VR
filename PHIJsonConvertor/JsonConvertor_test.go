@@ -40,7 +40,7 @@ func TestPtidList(t *testing.T) {
 func TestIteratePTID(t *testing.T) {
 
 	path := "C:\\Users\\raymond chou\\Desktop\\WorkingFiles\\src\\github.com\\raymond3chou\\VR\\PHIJsonConvertor\\TestDB.accdb"
-	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE"}
+	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE", "PATH"}
 	iteratePTID(path, fields, "C:\\Users\\raymond chou\\Desktop\\JSON")
 
 }
