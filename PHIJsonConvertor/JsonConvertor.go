@@ -85,7 +85,7 @@ type Address struct {
 	SOURCE     Source `json:"source"`
 }
 
-//Cardio for each unique cardiologist  take date,PTID,mrn,research_id
+//Cardio for each unique cardiologist
 type Cardio struct {
 	PTID       string `json:"ptid"`
 	MRN        string `json:"mrn"`
@@ -95,7 +95,7 @@ type Cardio struct {
 	SOURCE     Source `json:"source"`
 }
 
-//GP struct for each unique GP
+//GP struct for each unique general_practitioner
 type GP struct {
 	PTID       string `json:"ptid"`
 	MRN        string `json:"mrn"`
@@ -105,10 +105,9 @@ type GP struct {
 	SOURCE     Source `json:"source"`
 }
 
-//for each unique GP take date,PTID,mrn,research_id
-//patients:
-//should be only one set, match with VR
-
+//iteratePTID connects to the PatientInfo Database and creates JSON file for each of the event collections
+//determines the PTID list from the Contact table
+//event collections for each unique PTID are created.
 func iteratePTID(path string, fields []string, fldr string) {
 	conn := connectToDB(path)
 	pList := ptidList(conn)
@@ -174,7 +173,7 @@ func connectToDB(path string) *sql.DB {
 	return conn
 }
 
-//ptidList returns a list of unique PTIDs
+//ptidList returns a list of unique PTIDs from a connected DB with Contact table
 func ptidList(conn *sql.DB) []string {
 	var ptidList []string
 	rows, err := conn.Query("SELECT PTID FROM [Contact] GROUP BY PTID")
@@ -207,6 +206,8 @@ func queryGenerator(fields []string) string {
 	return fieldString
 }
 
+//queryTable queries a table in the database and maps them into a slice of a slice of OrderedMap
+//each slice corresponds to a row and the fields in the row are contained in a slice of OrderedMap presented as {"Field":"Value"}
 func queryTable(conn *sql.DB, query string, ptid string) [][]accessHelper.OrderedMap {
 	rows, err := conn.Query(query, ptid)
 	if err != nil {
@@ -254,7 +255,7 @@ func queryTable(conn *sql.DB, query string, ptid string) [][]accessHelper.Ordere
 	return orderedMapSlice
 }
 
-//compareObjects returns the duplicate that should be deleted
+//compareObjects returns the index of the duplicate with the later(furthest from present) date
 func compareObjects(objects []Object) int {
 	for i := 0; i < len(objects); i++ {
 		for j := i + 1; j < len(objects); j++ {
@@ -288,7 +289,7 @@ func compareDates(d1 string, d2 string) bool {
 	return false
 }
 
-//fixDates converts date to YYYY-MM-DD format
+//fixDates finds the date field within the OrderedMap and converts date to YYYY-MM-DD format
 func fixDate(oMS [][]accessHelper.OrderedMap, field string) [][]accessHelper.OrderedMap {
 	for i := 0; i < len(oMS); i++ {
 		for j := 0; j < len(oMS[i]); j++ {
@@ -301,6 +302,7 @@ func fixDate(oMS [][]accessHelper.OrderedMap, field string) [][]accessHelper.Ord
 	return oMS
 }
 
+//createPatientJSON creates the documents for the patient event
 func createPatientJSON(pMS [][]accessHelper.OrderedMap, patientJSONFile *os.File) {
 	pMS = fixDate(pMS, "DATEOR")
 	patientSlice := cleanPatient(pMS)
@@ -355,6 +357,7 @@ func toPatient(pS []accessHelper.OrderedMap) Patient {
 	return p
 }
 
+//toDate takes a PTID and parses the DOB and returns it in the YYYY-MM-DD format
 func toDate(dob string) string {
 	nDob := []byte(dob)
 	n := len(nDob)
@@ -364,6 +367,7 @@ func toDate(dob string) string {
 	return year + "-" + month + "-" + day
 }
 
+//createVRJSON creates the documents for non-patient events from the VR table
 func createVRJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phoneJSONFile *os.File, addressJSONFile *os.File, gpJSONFile *os.File, cardioJSONFile *os.File) {
 	oMS = fixDate(oMS, "DATEOR")
 	emailObject(oMS, emailJSONFile, "DATEOR")
@@ -373,6 +377,7 @@ func createVRJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phone
 	addressObject(oMS, addressJSONFile, "DATEOR")
 }
 
+//createJSON creates documents for non-patient events from the contact table
 func createJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phoneJSONFile *os.File, addressJSONFile *os.File, gpJSONFile *os.File, cardioJSONFile *os.File) {
 	oMS = fixDate(oMS, "FU_D")
 	oMS = fixDate(oMS, "LKA_D")
@@ -384,12 +389,14 @@ func createJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phoneJS
 	addressObject(oMS, addressJSONFile, "FU_D")
 }
 
+//emailObject creates email objects
 func emailObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	emails := cleanObject(oMS, "EMAIL", date)
 	basic := getBasic(oMS)
 	createEmail(emails, basic, jsonFile, "followupVR")
 }
 
+//phoneObject creates phone objects one for HOME and another for WORK
 func phoneObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
 	phonesHome := cleanObject(oMS, "PHONEHOME", date)
@@ -398,6 +405,7 @@ func phoneObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string
 	createPhones(phonesWork, basic, jsonFile, false, "followupVR")
 }
 
+//gpObject creates gp objects one for GP1 and another for GP2
 func gpObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
 	gp1 := cleanObject(oMS, "GP1", date)
@@ -406,6 +414,7 @@ func gpObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	createGP(gp2, basic, jsonFile, "followupVR")
 }
 
+//cardioObject creates cardio objects for Cardio1 and another for Cardio2
 func cardioObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
 	cardio1 := cleanObject(oMS, "CARDIO1", date)
@@ -414,13 +423,14 @@ func cardioObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date strin
 	createCardio(cardio2, basic, jsonFile, "followupVR")
 }
 
+//addressObject creates an address object when any of the address related fields are populated
 func addressObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
 	address := cleanAddress(oMS, date)
 	createAddress(address, basic, jsonFile, "followupVR")
 }
 
-//getBasic gets the basic information and stores it in a Basic struct
+//getBasic gets the basic information(PTID,MRN) and stores it in a Basic struct
 func getBasic(oMS [][]accessHelper.OrderedMap) Basic {
 	var b Basic
 	for i := 0; i < len(oMS); i++ {
@@ -440,6 +450,7 @@ func getBasic(oMS [][]accessHelper.OrderedMap) Basic {
 	return b
 }
 
+//checkDate checks if the field is a date field
 func checkDate(c string, field string) bool {
 	if c == field {
 		return true
@@ -447,6 +458,8 @@ func checkDate(c string, field string) bool {
 	return false
 }
 
+//cleanObject reads the OrderedMap for all the populated cells which correspond to the particular event
+//returns a slice of Object that contains the duplicate free field,date,and path
 func cleanObject(oMS [][]accessHelper.OrderedMap, field string, dateField string) []Object {
 	var fieldValue string
 	var date string
@@ -504,6 +517,8 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string, dateField string
 	return objects
 }
 
+//cleanAddress reads the OrderedMap for all the populated cells which correspond to the address event
+//returns a slice of Object that contains the duplicate free field,date,and path
 func cleanAddress(oMS [][]accessHelper.OrderedMap, dateField string) []Object {
 	var fieldValue []string
 	var date string
@@ -584,6 +599,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap, dateField string) []Object {
 	return objects
 }
 
+//createPhones generates and writes phone events to JSON
 func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool, s string) {
 	var e Phone
 	e.PTID = basic.PTID
@@ -602,6 +618,7 @@ func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool, s 
 	}
 }
 
+//createGP generates and writes GP events to JSON
 func createGP(gps []Object, basic Basic, jsonFile *os.File, s string) {
 	var e GP
 	e.PTID = basic.PTID
@@ -618,6 +635,7 @@ func createGP(gps []Object, basic Basic, jsonFile *os.File, s string) {
 	}
 }
 
+//createCardio generates and writes Cardio events to JSON
 func createCardio(cardio []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Cardio
 	e.PTID = basic.PTID
@@ -632,6 +650,7 @@ func createCardio(cardio []Object, basic Basic, jsonFile *os.File, s string) {
 	}
 }
 
+//createEmail generates and writes emails to JSON
 func createEmail(emails []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Email
 	e.PTID = basic.PTID
@@ -646,6 +665,7 @@ func createEmail(emails []Object, basic Basic, jsonFile *os.File, s string) {
 	}
 }
 
+//createAddress generates and writes addresses to JSON
 func createAddress(addr []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Address
 	e.PTID = basic.PTID
