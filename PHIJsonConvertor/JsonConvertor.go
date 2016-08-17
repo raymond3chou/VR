@@ -47,6 +47,7 @@ type Patient struct {
 	Lname      string `json:"last_name"`
 	Fname      string `json:"first_name"`
 	Sex        int64  `json:"sex"`
+	DOB        string `json:"dob"`
 	SOURCE     Source `json:"source"`
 }
 
@@ -158,7 +159,7 @@ func iteratePTID(path string, fields []string, fldr string) {
 			continue
 		}
 		createPatientJSON(patientInfoSlice, patientJSONFile)
-		createJSON(vrInfoSlice, emailJSONFile, phoneJSONFile, addressJSONFile, GPJSONFile, cardioJSONFile)
+		createVRJSON(vrInfoSlice, emailJSONFile, phoneJSONFile, addressJSONFile, GPJSONFile, cardioJSONFile)
 
 	}
 	conn.Close()
@@ -350,52 +351,73 @@ func toPatient(pS []accessHelper.OrderedMap) Patient {
 			p.Sex = excelHelper.StringToInt(pS[i].Value, 0, "")
 		}
 	}
+	p.DOB = toDate(p.PTID)
 	return p
+}
+
+func toDate(dob string) string {
+	nDob := []byte(dob)
+	n := len(nDob)
+	year := "19" + string(nDob[n-2]) + string(nDob[n-1])
+	month := string(nDob[n-4]) + string(nDob[n-3])
+	day := string(nDob[n-6]) + string(nDob[n-5])
+	return year + "-" + month + "-" + day
+}
+
+func createVRJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phoneJSONFile *os.File, addressJSONFile *os.File, gpJSONFile *os.File, cardioJSONFile *os.File) {
+	oMS = fixDate(oMS, "DATEOR")
+	emailObject(oMS, emailJSONFile, "DATEOR")
+	phoneObject(oMS, phoneJSONFile, "DATEOR")
+	gpObject(oMS, gpJSONFile, "DATEOR")
+	cardioObject(oMS, cardioJSONFile, "DATEOR")
+	addressObject(oMS, addressJSONFile, "DATEOR")
 }
 
 func createJSON(oMS [][]accessHelper.OrderedMap, emailJSONFile *os.File, phoneJSONFile *os.File, addressJSONFile *os.File, gpJSONFile *os.File, cardioJSONFile *os.File) {
 	oMS = fixDate(oMS, "FU_D")
-	emailObject(oMS, emailJSONFile)
-	phoneObject(oMS, phoneJSONFile)
-	gpObject(oMS, gpJSONFile)
-	cardioObject(oMS, cardioJSONFile)
-	addressObject(oMS, addressJSONFile)
+	oMS = fixDate(oMS, "LKA_D")
+
+	emailObject(oMS, emailJSONFile, "FU_D")
+	phoneObject(oMS, phoneJSONFile, "FU_D")
+	gpObject(oMS, gpJSONFile, "FU_D")
+	cardioObject(oMS, cardioJSONFile, "FU_D")
+	addressObject(oMS, addressJSONFile, "FU_D")
 }
 
-func emailObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File) {
+func emailObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
+	emails := cleanObject(oMS, "EMAIL", date)
 	basic := getBasic(oMS)
-	emails := cleanObject(oMS, "EMAIL")
-	createEmail(emails, basic, jsonFile)
+	createEmail(emails, basic, jsonFile, "followupVR")
 }
 
-func phoneObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File) {
+func phoneObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
-	phonesHome := cleanObject(oMS, "PHONEHOME")
-	createPhones(phonesHome, basic, jsonFile, true)
-	phonesWork := cleanObject(oMS, "PHONEWORK")
-	createPhones(phonesWork, basic, jsonFile, false)
+	phonesHome := cleanObject(oMS, "PHONEHOME", date)
+	createPhones(phonesHome, basic, jsonFile, true, "followupVR")
+	phonesWork := cleanObject(oMS, "PHONEWORK", date)
+	createPhones(phonesWork, basic, jsonFile, false, "followupVR")
 }
 
-func gpObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File) {
+func gpObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
-	gp1 := cleanObject(oMS, "GP1")
-	createGP(gp1, basic, jsonFile)
-	gp2 := cleanObject(oMS, "GP2")
-	createGP(gp2, basic, jsonFile)
+	gp1 := cleanObject(oMS, "GP1", date)
+	createGP(gp1, basic, jsonFile, "followupVR")
+	gp2 := cleanObject(oMS, "GP2", date)
+	createGP(gp2, basic, jsonFile, "followupVR")
 }
 
-func cardioObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File) {
+func cardioObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
-	cardio1 := cleanObject(oMS, "CARDIO1")
-	createCardio(cardio1, basic, jsonFile)
-	cardio2 := cleanObject(oMS, "CARDIO2")
-	createCardio(cardio2, basic, jsonFile)
+	cardio1 := cleanObject(oMS, "CARDIO1", date)
+	createCardio(cardio1, basic, jsonFile, "followupVR")
+	cardio2 := cleanObject(oMS, "CARDIO2", date)
+	createCardio(cardio2, basic, jsonFile, "followupVR")
 }
 
-func addressObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File) {
+func addressObject(oMS [][]accessHelper.OrderedMap, jsonFile *os.File, date string) {
 	basic := getBasic(oMS)
-	address := cleanAddress(oMS)
-	createAddress(address, basic, jsonFile)
+	address := cleanAddress(oMS, date)
+	createAddress(address, basic, jsonFile, "followupVR")
 }
 
 //getBasic gets the basic information and stores it in a Basic struct
@@ -413,12 +435,6 @@ func getBasic(oMS [][]accessHelper.OrderedMap) Basic {
 					b.MRN = oMS[i][j].Value
 				}
 			}
-			if oMS[i][j].Colname == "PATH" {
-				if oMS[i][j].Value != "" {
-					b.Source.Path = append(b.Source.Path, oMS[i][j].Value)
-					b.Source.Type = "followupVR"
-				}
-			}
 		}
 	}
 	return b
@@ -431,7 +447,7 @@ func checkDate(c string, field string) bool {
 	return false
 }
 
-func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
+func cleanObject(oMS [][]accessHelper.OrderedMap, field string, dateField string) []Object {
 	var fieldValue string
 	var date string
 	var objects []Object
@@ -440,6 +456,7 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
 
 	for i := 0; i < len(oMS); i++ {
 		validField = false
+		path = path[:0]
 		for j := 0; j < len(oMS[i]); j++ {
 			if oMS[i][j].Colname == field {
 				if oMS[i][j].Value != "" {
@@ -447,19 +464,23 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
 					validField = true
 				}
 			}
-			if checkDate(oMS[i][j].Colname, "FU_D") {
+			if checkDate(oMS[i][j].Colname, dateField) {
 				date = oMS[i][j].Value
 			}
-			if checkDate(oMS[i][j].Colname, "PATH") {
-				path = append(path, oMS[i][j].Value)
+
+		}
+		if validField && date == "" && dateField == "FU_D" {
+			for j := 0; j < len(oMS[i]); j++ {
+				if oMS[i][j].Colname == "LKA_D" {
+					date = oMS[i][j].Value
+				}
 			}
 		}
-		if validField && date == "" {
-			for i := 0; i < len(oMS); i++ {
-				for j := 0; j < len(oMS[i]); j++ {
-					if oMS[i][j].Colname == "LKA_D" {
-						date = oMS[i][j].Value
-					}
+		if validField {
+			path = path[:0]
+			for j := 0; j < len(oMS[i]); j++ {
+				if oMS[i][j].Colname == "PATH" {
+					path = append(path, oMS[i][j].Value)
 				}
 			}
 		}
@@ -483,7 +504,7 @@ func cleanObject(oMS [][]accessHelper.OrderedMap, field string) []Object {
 	return objects
 }
 
-func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
+func cleanAddress(oMS [][]accessHelper.OrderedMap, dateField string) []Object {
 	var fieldValue []string
 	var date string
 	var objects []Object
@@ -492,6 +513,8 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 	for i := 0; i < len(oMS); i++ {
 		validField := ""
 		fieldValue = []string{}
+		path = path[:0]
+
 		for j := 0; j < len(oMS[i]); j++ {
 			if oMS[i][j].Colname == "STREET" {
 				if oMS[i][j].Value != "" {
@@ -525,11 +548,18 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 					fieldValue = append(fieldValue, " ")
 				}
 			}
-			if checkDate(oMS[i][j].Colname, "FU_D") {
+			if checkDate(oMS[i][j].Colname, dateField) {
 				date = oMS[i][j].Value
 			}
-			if checkDate(oMS[i][j].Colname, "PATH") {
-				path = append(path, oMS[i][j].Value)
+			if validField != "" {
+
+				path = path[:0]
+
+				for j := 0; j < len(oMS[i]); j++ {
+					if oMS[i][j].Colname == "PATH" {
+						path = append(path, oMS[i][j].Value)
+					}
+				}
 			}
 		}
 		if validField != "" {
@@ -554,12 +584,11 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap) []Object {
 	return objects
 }
 
-func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool) {
+func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool, s string) {
 	var e Phone
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
-	e.SOURCE = basic.Source
-
+	e.SOURCE.Type = s
 	if home {
 		e.Type = "home"
 	} else {
@@ -568,53 +597,60 @@ func createPhones(phones []Object, basic Basic, jsonFile *os.File, home bool) {
 	for i := range phones {
 		e.PhoneNum = phones[i].Field
 		e.Date = phones[i].Date
+		e.SOURCE.Path = phones[i].Path
 		writeJSON(e, jsonFile)
 	}
 }
 
-func createGP(gps []Object, basic Basic, jsonFile *os.File) {
+func createGP(gps []Object, basic Basic, jsonFile *os.File, s string) {
 	var e GP
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
 	e.SOURCE = basic.Source
+	e.SOURCE.Type = s
 
 	for i := range gps {
 		e.GP = gps[i].Field
 		e.Date = gps[i].Date
+		e.SOURCE.Path = gps[i].Path
+
 		writeJSON(e, jsonFile)
 	}
 }
 
-func createCardio(cardio []Object, basic Basic, jsonFile *os.File) {
+func createCardio(cardio []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Cardio
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
-	e.SOURCE = basic.Source
+	e.SOURCE.Type = s
 	for i := range cardio {
 		e.Cardio = cardio[i].Field
 		e.Date = cardio[i].Date
+		e.SOURCE.Path = cardio[i].Path
+
 		writeJSON(e, jsonFile)
 	}
 }
 
-func createEmail(emails []Object, basic Basic, jsonFile *os.File) {
+func createEmail(emails []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Email
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
-	e.SOURCE = basic.Source
+	e.SOURCE.Type = s
 
 	for i := range emails {
 		e.Email = emails[i].Field
 		e.Date = emails[i].Date
+		e.SOURCE.Path = emails[i].Path
 		writeJSON(e, jsonFile)
 	}
 }
 
-func createAddress(addr []Object, basic Basic, jsonFile *os.File) {
+func createAddress(addr []Object, basic Basic, jsonFile *os.File, s string) {
 	var e Address
 	e.PTID = basic.PTID
 	e.MRN = basic.MRN
-	e.SOURCE = basic.Source
+	e.SOURCE.Type = s
 
 	for i := range addr {
 		a := strings.Split(addr[i].Field, "_")
@@ -623,6 +659,7 @@ func createAddress(addr []Object, basic Basic, jsonFile *os.File) {
 		e.Province = a[2]
 		e.PostCode = a[3]
 		e.Date = addr[i].Date
+		e.SOURCE.Path = addr[i].Path
 		writeJSON(e, jsonFile)
 	}
 }
