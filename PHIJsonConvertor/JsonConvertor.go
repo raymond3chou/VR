@@ -260,11 +260,38 @@ func compareObjects(objects []Object) int {
 	for i := 0; i < len(objects); i++ {
 		for j := i + 1; j < len(objects); j++ {
 			if j != i && objects[i].Field == objects[j].Field {
-				// if compareDates(objects[i].Date, objects[j].Date) {
+				// if compareDates(objects[i].Date, objects[j].Date)
 				if compareDates(objects[i].Date, objects[j].Date) {
 					return j
 				}
 				return i
+			}
+		}
+	}
+	return -1
+}
+
+//compareAddress if addresses are the same compare dates and take the most recent addresses
+//if dates are equal then see if second address is a subset of the first or vice sersa
+//delete the subset by returning the index within the Object slice
+func compareAddress(objects []Object) int {
+	for i := 0; i < len(objects); i++ {
+		for j := i + 1; j < len(objects); j++ {
+			if j != i && objects[i].Field == objects[j].Field {
+				// if compareDates(objects[i].Date, objects[j].Date)
+				if compareDates(objects[i].Date, objects[j].Date) {
+					return j
+				}
+				return i
+			}
+			if objects[i].Date == objects[j].Date {
+
+				if j != i && strings.Contains(objects[i].Field, objects[j].Field) {
+					return j
+
+				} else if j != i && strings.Contains(objects[j].Field, objects[i].Field) {
+					return i
+				}
 			}
 		}
 	}
@@ -361,10 +388,14 @@ func toPatient(pS []accessHelper.OrderedMap) Patient {
 func toDate(dob string) string {
 	nDob := []byte(dob)
 	n := len(nDob)
-	year := "19" + string(nDob[n-2]) + string(nDob[n-1])
-	month := string(nDob[n-4]) + string(nDob[n-3])
-	day := string(nDob[n-6]) + string(nDob[n-5])
-	return year + "-" + month + "-" + day
+	if n == 10 {
+		year := "19" + string(nDob[n-2]) + string(nDob[n-1])
+		month := string(nDob[n-4]) + string(nDob[n-3])
+		day := string(nDob[n-6]) + string(nDob[n-5])
+		return year + "-" + month + "-" + day
+	}
+	log.Printf("%s is not a valid PTID so DOB is 1990-01-01", dob)
+	return "1900-01-01"
 }
 
 //createVRJSON creates the documents for non-patient events from the VR table
@@ -589,7 +620,7 @@ func cleanAddress(oMS [][]accessHelper.OrderedMap, dateField string) []Object {
 	}
 	duplicates := 0
 	for true {
-		duplicates = compareObjects(objects)
+		duplicates = compareAddress(objects)
 		if duplicates != -1 {
 			objects = append(objects[:duplicates], objects[duplicates+1:]...)
 		} else {
@@ -702,5 +733,4 @@ func main() {
 	fields := []string{"PTID", "CHART", "EMAIL", "FU_D", "PHONEHOME", "PHONEWORK", "GP1", "GP2", "CARDIO1", "CARDIO2", "STREET", "CITY", "PROVINCE", "POSTCODE", "PATH", "LKA_D"}
 	fldr := "C:\\Users\\ext_hsc\\Desktop\\JSON"
 	iteratePTID(path, fields, fldr)
-
 }
